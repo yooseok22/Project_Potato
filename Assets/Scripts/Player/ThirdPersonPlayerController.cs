@@ -14,6 +14,7 @@ public sealed class ThirdPersonPlayerController : MonoBehaviour
     private Vector3 horizontalVelocity;
     private float verticalVelocity;
     private bool captured;
+    public bool CursorCapturedThisFrame { get; private set; }
 
     public void Configure(QuarterViewCamera cameraRig) => viewCamera = cameraRig;
     private void Awake() => controller = GetComponent<CharacterController>();
@@ -21,10 +22,15 @@ public sealed class ThirdPersonPlayerController : MonoBehaviour
 
     private void Update()
     {
+        CursorCapturedThisFrame = false;
         var keyboard = Keyboard.current;
         var mouse = Mouse.current;
         if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) SetCapture(false);
-        else if (!captured && mouse != null && mouse.leftButton.wasPressedThisFrame) SetCapture(true);
+        else if (!captured && mouse != null && mouse.leftButton.wasPressedThisFrame)
+        {
+            SetCapture(true);
+            CursorCapturedThisFrame = true;
+        }
 
         bool active = captured && Cursor.lockState == CursorLockMode.Locked && Application.isFocused;
         Vector2 move = Vector2.zero;
