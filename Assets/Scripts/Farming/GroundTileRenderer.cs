@@ -37,16 +37,14 @@ public sealed class GroundTileRenderer : MonoBehaviour
     {
         grid = GetComponent<GroundGrid>();
         grid.CellChanged += RefreshAround;
-        grid.AreaChanged += RebuildArea;
         if (started) Build();
     }
     private void Start() { started = true; Build(); }
     private void OnDisable()
     {
-        if (grid) { grid.CellChanged -= RefreshAround; grid.AreaChanged -= RebuildArea; }
+        if (grid) grid.CellChanged -= RefreshAround;
         Clear();
     }
-    private void RebuildArea() { if (started) Build(); }
 
     public void Build()
     {
