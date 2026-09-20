@@ -9,34 +9,13 @@ public sealed class GroundGrid : MonoBehaviour
     [Tooltip("World-space minimum corner of the grid; Y is the selection surface height.")]
     [SerializeField] private Vector3 origin = new Vector3(-50f, 0f, -50f);
     private bool[,] dug;
-    private bool[,] blocked;
     public event Action<Vector2Int> CellChanged;
-    public event Action AreaChanged;
     public float CellSize => Mathf.Max(0.01f, cellSize);
     public int Width => Mathf.Max(1, width);
     public int Depth => Mathf.Max(1, depth);
     public Vector3 Origin => origin;
-    // Compatibility only: collision geometry never determines the logical grid.
-    public MeshCollider Surface => GetComponent<MeshCollider>();
 
-    private void Awake() => EnsureCells();
-    private void EnsureCells()
-    {
-        if (dug != null && dug.GetLength(0) == Width && dug.GetLength(1) == Depth) return;
-        dug = new bool[Width, Depth];
-        blocked = new bool[Width, Depth];
-    }
-
-    public void ConfigureArea(Vector3 minimumCorner, int columns, int rows, float size)
-    {
-        origin = minimumCorner;
-        width = Mathf.Max(1, columns);
-        depth = Mathf.Max(1, rows);
-        cellSize = Mathf.Max(0.01f, size);
-        dug = blocked = null;
-        EnsureCells();
-        AreaChanged?.Invoke();
-    }
+    private void Awake() => dug = new bool[Width, Depth];
 
     public Vector2Int WorldToCell(Vector3 point) => new Vector2Int(
         Mathf.FloorToInt((point.x - Origin.x) / CellSize),
@@ -46,37 +25,16 @@ public sealed class GroundGrid : MonoBehaviour
         (cell.x + 0.5f) * CellSize, 0f, (cell.y + 0.5f) * CellSize);
 
     public bool ContainsCell(Vector2Int cell) => cell.x >= 0 && cell.y >= 0 && cell.x < Width && cell.y < Depth;
-    public bool IsDug(Vector2Int cell)
+    public bool IsDug(Vector2Int cell) => ContainsCell(cell) && dug[cell.x, cell.y];
+    public bool CanDig(Vector2Int cell) => ContainsCell(cell) && !dug[cell.x, cell.y];
+    public bool CanFill(Vector2Int cell) => ContainsCell(cell) && dug[cell.x, cell.y];
+    public bool TryDig(Vector2Int cell) => TrySetDug(cell, true);
+    public bool TryFill(Vector2Int cell) => TrySetDug(cell, false);
+
+    private bool TrySetDug(Vector2Int cell, bool value)
     {
-        EnsureCells();
-        return ContainsCell(cell) && dug[cell.x, cell.y];
-    }
-    public bool CanDig(Vector2Int cell)
-    {
-        EnsureCells();
-        return ContainsCell(cell) && !dug[cell.x, cell.y] && !blocked[cell.x, cell.y];
-    }
-    public bool CanFill(Vector2Int cell)
-    {
-        EnsureCells();
-        return ContainsCell(cell) && dug[cell.x, cell.y] && !blocked[cell.x, cell.y];
-    }
-    public void SetBlocked(Vector2Int cell, bool value)
-    {
-        EnsureCells();
-        if (ContainsCell(cell)) blocked[cell.x, cell.y] = value;
-    }
-    public bool TryDig(Vector2Int cell)
-    {
-        if (!GroundDigAction.CanDig(this, cell)) return false;
-        dug[cell.x, cell.y] = true;
-        CellChanged?.Invoke(cell);
-        return true;
-    }
-    public bool TryFill(Vector2Int cell)
-    {
-        if (!CanFill(cell)) return false;
-        dug[cell.x, cell.y] = false;
+        if (!ContainsCell(cell) || dug[cell.x, cell.y] == value) return false;
+        dug[cell.x, cell.y] = value;
         CellChanged?.Invoke(cell);
         return true;
     }

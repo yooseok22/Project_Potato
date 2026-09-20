@@ -14,7 +14,7 @@
 
 ## 데이터, 선택, 표시의 역할
 
-`GroundGrid`는 명시적인 구역 설정과 칸별 파진 상태·작업 금지 상태 배열을 관리한다. 표시 메시가 바뀌어도 좌표 원점과 크기는 변하지 않는다. 배열 좌표 `Vector2Int.x/y`는 각각 월드 X/Z에 대응한다.
+`GroundGrid`는 Inspector에서 지정한 구역과 칸별 파진 상태 배열을 관리한다. 표시 메시가 바뀌어도 좌표 원점과 크기는 변하지 않는다. 배열 좌표 `Vector2Int.x/y`는 각각 월드 X/Z에 대응한다.
 
 `FarmingTargetSelector`는 카메라 중앙 레이를 기준 높이의 수학적 평면과 교차시켜 칸을 선택한다. 배열 범위, 장애물, 거리와 칸 상태를 검사한다. `FarmingPreviewView`는 칸 중심에 사각형을 표시하고, 작업 가능은 초록색, 불가는 빨간색으로 보여준다.
 
@@ -49,7 +49,7 @@
 ```text
 오른쪽 클릭
 → FarmingTargetSelector.TryDigSelected()에서 선택·거리 재검사
-→ GroundGrid.TryDig()에서 유효 범위·작업 금지·이미 파진 상태 검사
+→ GroundGrid.TryDig()에서 유효 범위와 이미 파진 상태 검사
 → 선택 칸의 배열 상태 변경
 → CellChanged 이벤트
 → GroundTileRenderer가 선택 칸과 주변 8칸의 외형 계산
@@ -65,16 +65,15 @@
 
 ## 설정 및 파일
 
-`Ground`의 `GroundGrid` Inspector에서 원점, 가로·세로 칸 수와 칸 크기를 설정한다. 선택된 오브젝트의 노란 Gizmo로 구역을 확인할 수 있다. 첫 버전은 수평 XZ 격자와 회전 없는 바닥을 기준으로 한다.
+`Ground`의 `GroundGrid` Inspector에서 원점, 가로·세로 칸 수와 칸 크기를 설정한다. 선택된 오브젝트의 노란 Gizmo로 구역을 확인할 수 있다. 실행 중 구역 크기를 변경하는 기능은 현재 사용하지 않는다. 첫 버전은 수평 XZ 격자와 회전 없는 바닥을 기준으로 한다.
 
-`GroundTileRenderer`의 다섯 프리팹과 청크 크기를 설정한다. 런타임에 코드로 구역을 다시 설정하려면 `GroundGrid.ConfigureArea()`를 사용한다. 이 함수는 상태를 초기화하고 `AreaChanged` 이벤트로 청크를 다시 생성한다.
+`GroundTileRenderer`의 다섯 프리팹과 청크 크기를 설정한다.
 
 | 파일 | 역할 |
 | --- | --- |
 | `Assets/Scripts/Farming/GroundGrid.cs` | 구역, 배열 상태, 좌표 변환, 상태 변경 이벤트 |
 | `Assets/Scripts/Farming/FarmingTargetSelector.cs` | 조준 선택, 거리·장애물 검사, 오른쪽 클릭 |
 | `Assets/Scripts/Farming/FarmingPreviewView.cs` | 선택 칸 미리보기 |
-| `Assets/Scripts/Farming/GroundDigAction.cs` | 작업 가능 상태 검사 |
 | `Assets/Scripts/Farming/TileVisualResolver.cs` | 네 구역별 메시 종류와 회전 계산 |
 | `Assets/Scripts/Farming/TileMeshPatch.cs` | 원본 메시 자르기 및 조각 캐시 |
 | `Assets/Scripts/Farming/GroundTileRenderer.cs` | 청크 생성, 변경 청크 갱신, 생성 메시 해제 |
@@ -101,6 +100,32 @@
 
 기존 `com.unity.ide.visualstudio` 패키지의 초기화 예외가 콘솔에 남아 있다. 타일 스크립트의 컴파일과 위 실행 검증은 통과했으며 해당 패키지 오류는 이번 범위에서 변경하지 않았다.
 
+## V2 한 칸 타일 비교 모드
+
+`Assets/Fbx/Tile/v2`의 001~008 프리팹을 사용하는 두 번째 렌더러를 추가했다. 요청에는 9개라고 적혀 있었지만 현재 폴더와 번호는 001~008의 8개이므로 이 8개를 기준으로 구성했다. V1의 4분할 조합 로직은 그대로 유지하며 두 버전은 같은 `GroundGrid` 파기 데이터를 공유한다.
+
+| V2 프리팹 | 선택 조건 |
+| --- | --- |
+| 001 | 파지 않은 기본 칸 |
+| 002 | 주변 상하좌우가 연결되지 않은 단독 파기 |
+| 003 | 상하좌우 중 한 방향과 연결 |
+| 004 | 서로 마주 보는 두 방향과 연결한 직선 |
+| 005 | 상하좌우 네 방향과 연결한 십자 |
+| 006 | 서로 붙은 두 방향과 연결한 코너 |
+| 007 | 세 방향과 연결한 T자 |
+| 008 | 상하좌우와 네 대각선까지 모두 파진 완전 내부 칸 |
+
+`TileMap`의 `GroundTileVersionSwitcher`가 두 렌더러 중 하나만 활성화한다. Play Mode에서 F1은 V1, F2는 V2다. 전환할 때 배열의 파기 상태는 유지되므로 같은 패턴을 즉시 비교할 수 있고, 두 청크 렌더러와 MeshCollider가 동시에 겹치지 않는다. 기본 시작 버전은 V1이다.
+
+V2도 16×16 청크 메시와 청크별 MeshCollider를 사용한다. 차이는 메시를 4분할해 조합하지 않고 각 칸마다 001~008 중 완전한 타일 하나를 선택한다는 점이다. V2 원본 메시를 런타임에 결합하므로 `Potato Millionaire Land Tile v.2.fbx`의 Read/Write를 활성화했다.
+
+관련 파일은 다음과 같다.
+
+- `TileVisualResolverV2.cs`: 주변 8칸에서 001~008 종류와 회전 계산
+- `TileMeshSource.cs`: 완전한 프리팹 메시와 재질을 읽어 청크에 추가
+- `GroundTileRendererV2.cs`: V2 청크 표시와 충돌 갱신
+- `GroundTileVersionSwitcher.cs`: F1/F2 테스트 버전 전환
+
 ## 파진 높이의 물리 처리 (추가 적용)
 
 - 청크마다 비볼록·비트리거 MeshCollider 하나를 생성하고, 청크의 렌더링 Mesh를 충돌에도 사용한다. 청크에는 Rigidbody를 추가하지 않는다.
@@ -115,11 +140,15 @@
 ## 왼쪽 클릭으로 땅 덮기 (추가 적용)
 
 - 오른쪽 클릭은 기존 파기를 유지하고, 왼쪽 클릭은 선택한 파진 칸을 덮는다.
-- GroundGrid의 CanFill/TryFill이 범위·파진 상태·작업 금지를 검사한다. FarmingTargetSelector의 TryFillSelected는 선택·장애물·거리를 다시 검사하고 작업한다.
+- GroundGrid의 CanFill/TryFill이 범위와 파진 상태를 검사한다. FarmingTargetSelector의 TryFillSelected는 선택·장애물·거리를 다시 검사하고 작업한다.
 - 덮은 칸은 미파진 상태가 되고 CellChanged 이벤트로 주변 8칸의 표시와 관련 청크 MeshCollider를 함께 갱신한다.
 - 주변에 파진 칸이 없으면 001로 완전히 돌아간다. 파진 이웃이 남으면 그에 맞는 경계가 유지된다. 무조건 001로 강제하면 이웃 구멍의 경계가 끊기므로 배열 상태에서 외형을 계산한다.
-- 미리보기는 파기 또는 덮기가 가능한 칸에서 초록색이며, 거리 밖이나 작업 금지 칸은 빨간색이다.
+- 미리보기는 파기 또는 덮기가 가능한 칸에서 초록색이며, 거리 밖이거나 장애물에 가린 칸은 빨간색이다.
 - Esc 이후 커서를 다시 잠그는 첫 왼쪽 클릭은 커서 잠금만 수행한다. ThirdPersonPlayerController.CursorCapturedThisFrame으로 도구 입력과 구분한다.
 - 컴파일 통과. 실행 검증에서 단일 구멍 덮기 9칸, 인접 구멍 중 하나 덮기 6칸 변경과 남은 구멍 경계 유지, 청크 모서리의 4청크 갱신을 확인했다.
-- selector의 CanFarm/CanFill 전환과 덮기 실행, 범위 밖·거리 밖·작업 금지·이미 덮인 칸의 작업 거절을 검증했다. 충돌 높이가 Y=0으로 복구되었고, 플레이어 발밑을 덮는 경우에도 약 0.286m 올라가 다시 접지했다.
+- selector의 CanFarm/CanFill 전환과 덮기 실행, 범위 밖·거리 밖·이미 덮인 칸의 작업 거절을 검증했다. 충돌 높이가 Y=0으로 복구되었고, 플레이어 발밑을 덮는 경우에도 약 0.286m 올라가 다시 접지했다.
+
+## GroundGrid 정리
+
+현재 프로젝트에서 호출되지 않던 MeshCollider 호환 프로퍼티, 런타임 구역 재설정 API와 이벤트, 작업 금지 배열/API를 제거했다. 파기 가능 여부만 다시 전달하던 `GroundDigAction`도 제거하고 호출부가 `GroundGrid.CanDig`를 직접 사용한다. 파기와 덮기는 하나의 내부 상태 변경 함수로 합쳐 같은 검증과 이벤트 발생 경로를 사용한다.
 - 테스트 후 Play를 종료했다.

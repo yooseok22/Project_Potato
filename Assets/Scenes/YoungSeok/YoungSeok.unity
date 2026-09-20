@@ -265,7 +265,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1001 &523728840
+--- !u!1001 &276137202
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -275,15 +275,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: eadd9efe618241849904b7c2605fd761, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 121.4
+      value: 131.3
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: eadd9efe618241849904b7c2605fd761, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.57
+      value: -0.81
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: eadd9efe618241849904b7c2605fd761, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 72.8
+      value: 73.26
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: eadd9efe618241849904b7c2605fd761, type: 3}
       propertyPath: m_LocalRotation.w
@@ -928,6 +928,8 @@ GameObject:
   - component: {fileID: 1465079613}
   - component: {fileID: 1465079612}
   - component: {fileID: 1465079611}
+  - component: {fileID: 1465079614}
+  - component: {fileID: 1465079615}
   m_Layer: 0
   m_Name: TileMap
   m_TagString: Untagged
@@ -947,10 +949,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: efc9f001ddec04942b57b19693524693, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GroundTileRenderer
-  solidPrefab: {fileID: 3100603424447864556, guid: 8f86dc87ec8731d4b9860af8ce05c913, type: 3}
-  cornerPrefab: {fileID: 9082662273363401371, guid: 7100b79f4c612dc498ca037a5ca1c2ab, type: 3}
-  edgePrefab: {fileID: 9052486397817784121, guid: 4fcb4a57e43ab214da14e8e5f5de37d1, type: 3}
-  dugPrefab: {fileID: 2477457088427083223, guid: a453799c78e382b4bb7c3f743349dd14, type: 3}
+  solidPrefab: {fileID: 5547714888096616989, guid: 8f86dc87ec8731d4b9860af8ce05c913, type: 3}
+  cornerPrefab: {fileID: 3772956214024860900, guid: 7100b79f4c612dc498ca037a5ca1c2ab, type: 3}
+  edgePrefab: {fileID: 3115452955883191415, guid: 4fcb4a57e43ab214da14e8e5f5de37d1, type: 3}
+  dugPrefab: {fileID: 1360847078048391353, guid: a453799c78e382b4bb7c3f743349dd14, type: 3}
   innerCornerPrefab: {fileID: 8868105464096219763, guid: e5699662595f53b43900d5482398326a, type: 3}
   prefabCellSize: 2
   chunkSize: 16
@@ -985,6 +987,44 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1465079614
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1465079610}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff2d9cd64bbfbe2469efd5359f324527, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GroundTileRendererV2
+  tilePrefabs:
+  - {fileID: 7899001709632614810, guid: d295c484db6a1434bb02f9a56d5fdd5e, type: 3}
+  - {fileID: 8986632440264443148, guid: 2d302e7f4940c4948b48f6d274083907, type: 3}
+  - {fileID: 8745442112804644583, guid: 44bf11b10b090d54b92a6a8901d22b24, type: 3}
+  - {fileID: 4252501011586079724, guid: f6048d9546ea36e45a6b30f0ea6e04e8, type: 3}
+  - {fileID: 1705118846929509711, guid: abe6f3784a13c7d438d4038ff5c13360, type: 3}
+  - {fileID: 3715311398998400908, guid: df7a1aa27ab2afa4593dabcf6dcb240e, type: 3}
+  - {fileID: 1352219525758240835, guid: 44bc9ff70328eb845831f3a10d05f184, type: 3}
+  - {fileID: 3019578349263780090, guid: e46d234673a26e2418aba467d4be3cdf, type: 3}
+  prefabCellSize: 2
+  chunkSize: 16
+--- !u!114 &1465079615
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1465079610}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 90b5d0d7faf452c4d92c87f3ebd44db1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GroundTileVersionSwitcher
+  initialVersion: 0
+  v1TestKey: 94
+  v2TestKey: 95
 --- !u!1 &1499708886
 GameObject:
   m_ObjectHideFlags: 0
@@ -1202,6 +1242,6 @@ SceneRoots:
   - {fileID: 7741414980291586184}
   - {fileID: 711076584}
   - {fileID: 982013430}
-  - {fileID: 523728840}
   - {fileID: 1465079613}
   - {fileID: 185424898}
+  - {fileID: 276137202}

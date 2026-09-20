@@ -62,7 +62,7 @@ public sealed class FarmingTargetSelector : MonoBehaviour
         Vector3 delta = center - player.position;
         delta.y = 0f;
         bool inRange = delta.sqrMagnitude <= interactionRange * interactionRange;
-        CanFarm = GroundDigAction.CanDig(ground, cell) && inRange;
+        CanFarm = ground.CanDig(cell) && inRange;
         CanFill = ground.CanFill(cell) && inRange;
         preview.Show(center, ground.CellSize, CanFarm || CanFill);
     }
