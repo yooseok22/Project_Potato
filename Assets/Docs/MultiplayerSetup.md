@@ -15,7 +15,7 @@
 2. **Multiplayer Session Controller → Player Prefab**에 프리팹을 지정합니다.
 3. 프리팹 루트에는 `NetworkObject`가 필요합니다. 모든 실행 인스턴스에 동일한 프리팹을 사용합니다.
 4. **NetworkManager의 Player Prefab은 비워 둡니다.** 자동 생성 대신 컨트롤러가 씬 동기화 후 생성하며, 지정된 프리팹은 실행 전 네트워크 프리팹으로 등록합니다.
-5. 프리팹의 위치/회전 동기화와 소유자만 입력·카메라를 처리하는 동작은 프리팹 쪽에 추가해야 합니다. 기존 ThirdPersonPlayerController는 로컬 입력용이므로 그대로 모든 네트워크 플레이어에 활성화하면 안 됩니다.
+5. 프리팹의 위치/회전은 `NetworkTransform`이 동기화하고, `FirstPersonPlayerController`는 소유자만 입력과 카메라를 처리합니다.
 
 프리팹을 비워 두어도 세션 접속과 씬 이동을 테스트할 수 있습니다. 임시 플레이어는 생성하지 않습니다.
 

@@ -75,7 +75,7 @@ internal sealed class TileMeshSource
     }
 
     public void Append(List<Vector3> outputVertices, List<Vector3> outputNormals, List<Vector2> outputUV,
-        List<int>[] outputTriangles, Vector3 offset, float scale, int quarterTurns)
+        List<int>[] outputTriangles, Vector3 offset, float scale, int quarterTurns, bool mirrorX)
     {
         var rotation = Quaternion.Euler(0f, quarterTurns * 90f, 0f);
         foreach (var part in parts)
@@ -83,15 +83,60 @@ internal sealed class TileMeshSource
             int vertexStart = outputVertices.Count;
             for (int index = 0; index < part.Vertices.Length; index++)
             {
-                outputVertices.Add(offset + rotation * (part.Vertices[index] * scale));
-                outputNormals.Add(rotation * part.Normals[index]);
+                var position = part.Vertices[index] * scale;
+                var normal = part.Normals[index];
+                if (mirrorX)
+                {
+                    position.x = -position.x;
+                    normal.x = -normal.x;
+                }
+                outputVertices.Add(offset + rotation * position);
+                outputNormals.Add(rotation * normal);
                 outputUV.Add(part.UV[index]);
             }
             for (int submesh = 0; submesh < part.Triangles.Length; submesh++)
             {
                 var destination = outputTriangles[part.MaterialIndices[submesh]];
-                foreach (int index in part.Triangles[submesh]) destination.Add(vertexStart + index);
+                var source = part.Triangles[submesh];
+                for (int index = 0; index < source.Length; index += 3)
+                {
+                    destination.Add(vertexStart + source[index]);
+                    destination.Add(vertexStart + source[index + (mirrorX ? 2 : 1)]);
+                    destination.Add(vertexStart + source[index + (mirrorX ? 1 : 2)]);
+                }
             }
+        }
+    }
+
+    public void AppendOverlay(List<Vector3> outputVertices, List<Vector3> outputNormals,
+        List<Vector2> outputUV, List<int> outputTriangles, Vector3 offset, float scale,
+        int quarterTurns, bool mirrorX, float normalOffset)
+    {
+        var rotation = Quaternion.Euler(0f, quarterTurns * 90f, 0f);
+        foreach (var part in parts)
+        {
+            int vertexStart = outputVertices.Count;
+            for (int index = 0; index < part.Vertices.Length; index++)
+            {
+                var position = part.Vertices[index] * scale;
+                var normal = part.Normals[index];
+                if (mirrorX)
+                {
+                    position.x = -position.x;
+                    normal.x = -normal.x;
+                }
+                normal = rotation * normal;
+                outputVertices.Add(offset + rotation * position + normal * normalOffset);
+                outputNormals.Add(normal);
+                outputUV.Add(part.UV[index]);
+            }
+            foreach (var source in part.Triangles)
+                for (int index = 0; index < source.Length; index += 3)
+                {
+                    outputTriangles.Add(vertexStart + source[index]);
+                    outputTriangles.Add(vertexStart + source[index + (mirrorX ? 2 : 1)]);
+                    outputTriangles.Add(vertexStart + source[index + (mirrorX ? 1 : 2)]);
+                }
         }
     }
 }

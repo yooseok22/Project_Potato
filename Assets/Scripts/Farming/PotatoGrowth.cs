@@ -32,6 +32,8 @@ public sealed class PotatoGrowth : MonoBehaviour
     public double AgeSeconds => IsPlanted && clock ? Math.Max(0d, clock.ElapsedSeconds - plantedAt) : 0d;
     public float Progress => (float)Math.Min(1d, AgeSeconds / BaseGrowthSeconds);
     public bool IsReadyToHarvest => IsPlanted && AgeSeconds >= BaseGrowthSeconds;
+    public bool IsWatered { get; private set; }
+    public bool StemRemoved { get; private set; }
     public event Action<PotatoGrowthStage> StageChanged;
     public event Action HarvestReady;
 
@@ -69,6 +71,8 @@ public sealed class PotatoGrowth : MonoBehaviour
         plantedAt = clock.ElapsedSeconds;
         Stage = PotatoGrowthStage.SoilMound;
         IsPlanted = true;
+        IsWatered = false;
+        StemRemoved = false;
         nextProgressLogAge = progressLogInterval;
         Subscribe();
         ReportStage();
@@ -105,10 +109,31 @@ public sealed class PotatoGrowth : MonoBehaviour
         if (!IsReadyToHarvest) return false;
         RefreshGrowth();
         IsPlanted = false;
+        IsWatered = false;
+        StemRemoved = false;
         Unsubscribe();
         if (logStageChanges) Debug.Log($"[Potato] {name}: 수확 완료", this);
         return true;
     }
+
+    public bool TryWater()
+    {
+        if (!IsPlanted || IsWatered) return false;
+        IsWatered = true;
+        Debug.Log($"[Potato] {name}: 물 공급 완료", this);
+        return true;
+    }
+
+    public bool TryCutStem()
+    {
+        RefreshGrowth();
+        if (!IsReadyToHarvest || StemRemoved) return false;
+        StemRemoved = true;
+        Debug.Log($"[Potato] {name}: 줄기 제거 완료", this);
+        return true;
+    }
+
+    public bool TryHarvestWithFork() => StemRemoved && TryHarvest();
 
     private void Subscribe()
     {

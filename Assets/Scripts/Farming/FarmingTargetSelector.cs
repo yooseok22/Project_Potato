@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 [DefaultExecutionOrder(200)]
 public sealed class FarmingTargetSelector : MonoBehaviour
@@ -16,6 +15,7 @@ public sealed class FarmingTargetSelector : MonoBehaviour
     public bool HasTarget { get; private set; }
     public bool CanFarm { get; private set; }
     public bool CanFill { get; private set; }
+    public bool CanWater { get; private set; }
     public Vector2Int SelectedCell { get; private set; }
 
     public void Configure(Camera camera, Transform target, GroundGrid grid, FarmingPreviewView view, LayerMask mask)
@@ -24,14 +24,14 @@ public sealed class FarmingTargetSelector : MonoBehaviour
     }
     private void LateUpdate()
     {
+        var items = player ? player.GetComponent<PlayerItemController>() : null;
+        if (items && items.SelectedSlot != PlayerItemSlot.Hoe && items.SelectedSlot != PlayerItemSlot.WateringCan)
+        {
+            HasTarget = CanFarm = CanFill = CanWater = false;
+            if (preview) preview.Hide();
+            return;
+        }
         RefreshTarget();
-        if (!enableDigging || !Application.isFocused || Cursor.lockState != CursorLockMode.Locked
-            || Mouse.current == null) return;
-        var controller = player ? player.GetComponent<ThirdPersonPlayerController>() : null;
-        // The click used to return from Escape only captures the cursor.
-        if (controller && controller.CursorCapturedThisFrame) return;
-        if (Mouse.current.leftButton.wasPressedThisFrame) TryFillSelected();
-        else if (Mouse.current.rightButton.wasPressedThisFrame) TryDigSelected();
     }
     public bool TryDigSelected()
     {
@@ -45,9 +45,33 @@ public sealed class FarmingTargetSelector : MonoBehaviour
         RefreshTarget();
         return true;
     }
+    public bool TryUseHoePrimarySelected()
+    {
+        RefreshTarget();
+        if (!enableDigging || !HasTarget || !CanReachSelected()) return false;
+        bool changed = ground.TryUseHoePrimary(SelectedCell);
+        RefreshTarget();
+        return changed;
+    }
+    public bool TryUseHoeSecondarySelected()
+    {
+        RefreshTarget();
+        if (!enableDigging || !HasTarget || !CanReachSelected()) return false;
+        bool changed = ground.TryUseHoeSecondary(SelectedCell);
+        RefreshTarget();
+        return changed;
+    }
+    public bool TryWaterSelected()
+    {
+        RefreshTarget();
+        if (!HasTarget || !CanReachSelected() || !ground.CanWater(SelectedCell)) return false;
+        bool changed = ground.TryWater(SelectedCell);
+        RefreshTarget();
+        return changed;
+    }
     public void RefreshTarget()
     {
-        HasTarget = CanFarm = CanFill = false;
+        HasTarget = CanFarm = CanFill = CanWater = false;
         if (!aimCamera || !player || !ground || !preview) { if (preview) preview.Hide(); return; }
         Ray ray = aimCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
         if (!ground.TryGetCell(ray, rayDistance, out Vector2Int cell, out float distance)
@@ -62,9 +86,21 @@ public sealed class FarmingTargetSelector : MonoBehaviour
         Vector3 delta = center - player.position;
         delta.y = 0f;
         bool inRange = delta.sqrMagnitude <= interactionRange * interactionRange;
-        CanFarm = ground.CanDig(cell) && inRange;
-        CanFill = ground.CanFill(cell) && inRange;
-        preview.Show(center, ground.CellSize, CanFarm || CanFill);
+        CanFarm = ground.CanUseHoeSecondary(cell) && inRange;
+        CanFill = ground.CanUseHoePrimary(cell) && inRange;
+        CanWater = ground.CanWater(cell) && inRange;
+        var items = player.GetComponent<PlayerItemController>();
+        if (items && items.SelectedSlot == PlayerItemSlot.Hoe)
+            preview.Show(center, ground.CellSize, CanFarm || CanFill);
+        else
+            preview.Hide();
+    }
+    private bool CanReachSelected()
+    {
+        if (!ground || !player || !ground.ContainsCell(SelectedCell)) return false;
+        Vector3 delta = ground.CellCenter(SelectedCell) - player.position;
+        delta.y = 0f;
+        return delta.sqrMagnitude <= interactionRange * interactionRange;
     }
     private bool IsOccluded(Ray ray, float distance)
     {
@@ -76,5 +112,5 @@ public sealed class FarmingTargetSelector : MonoBehaviour
         }
         return false;
     }
-    private void OnDisable() { HasTarget = CanFarm = CanFill = false; if (preview) preview.Hide(); }
+    private void OnDisable() { HasTarget = CanFarm = CanFill = CanWater = false; if (preview) preview.Hide(); }
 }
