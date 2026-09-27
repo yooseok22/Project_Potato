@@ -1,57 +1,205 @@
-﻿using UnityEngine;
+using UnityEngine;
 
-// Each quarter selects an artist-authored surface from its two face neighbours and diagonal.
-// This covers all 256 neighbour masks without blocking a change of digging direction.
+// Selects one complete authored tile per grid cell from the final 001-014 set.
 public static class TileVisualResolver
 {
-    public struct Piece
-    {
-        public int Kind; // 0 solid, 1 outer corner, 2 edge, 3 dug, 4 inner corner
-        public int QuarterTurns;
-    }
     public struct Visual
     {
-        public int Signature;
+        public int Kind; // 0..13 maps directly to v2-001..v2-014.
+        public int QuarterTurns;
+        public bool MirrorX;
+
+        public int Signature => Kind | (QuarterTurns << 4) | (MirrorX ? 1 << 6 : 0);
         public bool SameAs(Visual other) => Signature == other.Signature;
-        public Piece GetPiece(int quadrant)
-        {
-            int value = (Signature >> (quadrant * 5)) & 31;
-            return new Piece { Kind = value & 7, QuarterTurns = value >> 3 };
-        }
     }
-    // Quadrants: SW, NW, NE, SE. Unity +90 Y rotates west toward north.
-    private static readonly Vector2Int[] Faces = { Vector2Int.left, Vector2Int.up, Vector2Int.right, Vector2Int.down };
-    private static readonly Vector2Int[] Corners = { new Vector2Int(-1,-1), new Vector2Int(-1,1), new Vector2Int(1,1), new Vector2Int(1,-1) };
-    private static readonly int[] FirstFace = { 0, 0, 2, 2 };
-    private static readonly int[] SecondFace = { 3, 1, 1, 3 };
+
+    // Bit order follows clockwise directions: north, east, south, west.
+    private const int North = 1 << 0;
+    private const int East = 1 << 1;
+    private const int South = 1 << 2;
+    private const int West = 1 << 3;
+    private const int AllCardinals = North | East | South | West;
+
+    // Diagonal bit order also follows clockwise directions.
+    private const int NorthEast = 1 << 0;
+    private const int SouthEast = 1 << 1;
+    private const int SouthWest = 1 << 2;
+    private const int NorthWest = 1 << 3;
+    private const int AllDiagonals = NorthEast | SouthEast | SouthWest | NorthWest;
+
+    private static readonly Vector2Int[] CardinalOffsets =
+    {
+        Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left
+    };
+
+    private static readonly Vector2Int[] DiagonalOffsets =
+    {
+        new Vector2Int(1, 1), new Vector2Int(1, -1),
+        new Vector2Int(-1, -1), new Vector2Int(-1, 1)
+    };
 
     public static Visual Resolve(GroundGrid grid, Vector2Int cell)
     {
-        var visual = new Visual();
-        for (int quadrant = 0; quadrant < 4; quadrant++)
+        if (!grid.IsDug(cell)) return new Visual { Kind = 0 };
+
+        int cardinalMask = 0;
+        for (int direction = 0; direction < CardinalOffsets.Length; direction++)
+            if (grid.IsDug(cell + CardinalOffsets[direction])) cardinalMask |= 1 << direction;
+
+        int diagonalMask = 0;
+        for (int direction = 0; direction < DiagonalOffsets.Length; direction++)
+            if (grid.IsDug(cell + DiagonalOffsets[direction])) diagonalMask |= 1 << direction;
+
+        int count = CountBits(cardinalMask);
+        switch (count)
         {
-            int kind = 0, turns = 0;
-            bool first = grid.IsDug(cell + Faces[FirstFace[quadrant]]);
-            bool second = grid.IsDug(cell + Faces[SecondFace[quadrant]]);
-            if (grid.IsDug(cell)) kind = 3;
-            else if (first && second)
-            {
-                kind = 4;
-                // Cube.571's raw mesh slopes toward east and south. Ignore its saved root pose.
-                turns = (quadrant + 1) % 4;
-            }
-            else if (first || second)
-            {
-                kind = 2;
-                turns = first ? FirstFace[quadrant] : SecondFace[quadrant];
-            }
-            else if (grid.IsDug(cell + Corners[quadrant]))
-            {
-                kind = 1;
-                turns = quadrant;
-            }
-            visual.Signature |= (kind | (turns << 3)) << (quadrant * 5);
+            case 0:
+                return new Visual { Kind = 1 }; // 002, isolated hole.
+            case 1:
+                return Transformed(2, North, 0, cardinalMask, 0); // 003, one connection.
+            case 2:
+                if (cardinalMask == (North | South) || cardinalMask == (East | West))
+                    return Transformed(3, North | South, 0, cardinalMask, 0); // 004, straight.
+                return ResolveCorner(cardinalMask, diagonalMask);
+            case 3:
+                return ResolveThreeWay(cardinalMask, diagonalMask);
+            default:
+                return ResolveFourWay(diagonalMask);
         }
-        return visual;
+    }
+
+    private static Visual ResolveCorner(int cardinalMask, int diagonalMask)
+    {
+        int sharedDiagonal = SharedDiagonal(cardinalMask);
+        if ((diagonalMask & sharedDiagonal) != 0)
+            return Transformed(4, North | West, NorthWest, cardinalMask, sharedDiagonal); // 005.
+
+        return Transformed(6, East | South, 0, cardinalMask, 0); // 007, raised inside corner.
+    }
+
+    private static Visual ResolveThreeWay(int cardinalMask, int diagonalMask)
+    {
+        int relevant = RelevantThreeWayDiagonals(cardinalMask);
+        int dugRelevant = diagonalMask & relevant;
+        int missingCount = 2 - CountBits(dugRelevant);
+
+        if (missingCount == 0)
+            return Transformed(5, North | East | South, NorthEast | SouthEast,
+                cardinalMask, relevant); // 006.
+        if (missingCount == 1)
+            return Transformed(7, North | East | South, NorthEast,
+                cardinalMask, dugRelevant); // 008.
+
+        return Transformed(8, North | East | South, 0,
+            cardinalMask, 0); // 009, both exposed diagonals remain undug.
+    }
+
+    private static Visual ResolveFourWay(int diagonalMask)
+    {
+        int missingMask = AllDiagonals & ~diagonalMask;
+        switch (CountBits(missingMask))
+        {
+            case 0:
+                return new Visual { Kind = 13 }; // 014, all eight neighbours dug.
+            case 1:
+                return Transformed(9, AllCardinals, AllDiagonals & ~SouthEast,
+                    AllCardinals, diagonalMask); // 010.
+            case 2:
+                // 011 contains an adjacent pair of raised corners. Opposite missing
+                // diagonals have no exact authored prefab, so use the closest 011
+                // orientation while keeping the rule deterministic.
+                return ClosestTwoDiagonalTransform(diagonalMask);
+            case 3:
+                return Transformed(11, AllCardinals, SouthEast,
+                    AllCardinals, diagonalMask); // 012.
+            default:
+                return new Visual { Kind = 12 }; // 013, all diagonals remain undug.
+        }
+    }
+
+    private static Visual ClosestTwoDiagonalTransform(int targetDiagonals)
+    {
+        Visual best = default;
+        int bestMatches = -1;
+        int baseDiagonals = NorthEast | NorthWest; // 011: southern corners are raised.
+        for (int mirror = 0; mirror < 2; mirror++)
+            for (int turns = 0; turns < 4; turns++)
+            {
+                int transformed = TransformDiagonalMask(baseDiagonals, turns, mirror != 0);
+                int matches = 4 - CountBits(transformed ^ targetDiagonals);
+                if (matches <= bestMatches) continue;
+                bestMatches = matches;
+                best = new Visual { Kind = 10, QuarterTurns = turns, MirrorX = mirror != 0 };
+            }
+        return best;
+    }
+
+    private static int SharedDiagonal(int cardinalMask)
+    {
+        if ((cardinalMask & (North | East)) == (North | East)) return NorthEast;
+        if ((cardinalMask & (East | South)) == (East | South)) return SouthEast;
+        if ((cardinalMask & (South | West)) == (South | West)) return SouthWest;
+        return NorthWest;
+    }
+
+    private static int RelevantThreeWayDiagonals(int cardinalMask)
+    {
+        if ((cardinalMask & West) == 0) return NorthEast | SouthEast;
+        if ((cardinalMask & North) == 0) return SouthEast | SouthWest;
+        if ((cardinalMask & East) == 0) return SouthWest | NorthWest;
+        return NorthWest | NorthEast;
+    }
+
+    private static Visual Transformed(int kind, int baseCardinals, int baseDiagonals,
+        int targetCardinals, int targetDiagonals)
+    {
+        for (int mirror = 0; mirror < 2; mirror++)
+            for (int turns = 0; turns < 4; turns++)
+                if (TransformCardinalMask(baseCardinals, turns, mirror != 0) == targetCardinals &&
+                    TransformDiagonalMask(baseDiagonals, turns, mirror != 0) == targetDiagonals)
+                    return new Visual { Kind = kind, QuarterTurns = turns, MirrorX = mirror != 0 };
+
+        Debug.LogError($"No tile transform maps cardinal {baseCardinals}/{targetCardinals} " +
+            $"and diagonal {baseDiagonals}/{targetDiagonals}.");
+        return new Visual { Kind = kind };
+    }
+
+    private static int TransformCardinalMask(int mask, int turns, bool mirrorX)
+    {
+        if (mirrorX)
+        {
+            int mirrored = mask & (North | South);
+            if ((mask & East) != 0) mirrored |= West;
+            if ((mask & West) != 0) mirrored |= East;
+            mask = mirrored;
+        }
+        turns &= 3;
+        return ((mask << turns) | (mask >> (4 - turns))) & AllCardinals;
+    }
+
+    private static int TransformDiagonalMask(int mask, int turns, bool mirrorX)
+    {
+        if (mirrorX)
+        {
+            int mirrored = 0;
+            if ((mask & NorthEast) != 0) mirrored |= NorthWest;
+            if ((mask & SouthEast) != 0) mirrored |= SouthWest;
+            if ((mask & SouthWest) != 0) mirrored |= SouthEast;
+            if ((mask & NorthWest) != 0) mirrored |= NorthEast;
+            mask = mirrored;
+        }
+        turns &= 3;
+        return ((mask << turns) | (mask >> (4 - turns))) & AllDiagonals;
+    }
+
+    private static int CountBits(int value)
+    {
+        int count = 0;
+        while (value != 0)
+        {
+            count += value & 1;
+            value >>= 1;
+        }
+        return count;
     }
 }

@@ -1,5 +1,36 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &2823646585901569810
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2155189130120123729}
+  m_Layer: 0
+  m_Name: EyeAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2155189130120123729
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2823646585901569810}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.82, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3822226571236050513}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8894249788821231030
 GameObject:
   m_ObjectHideFlags: 0
@@ -17,6 +48,14 @@ GameObject:
   - component: {fileID: 2914183081451298870}
   - component: {fileID: 8254491928012310048}
   - component: {fileID: 6714608235476413089}
+  - component: {fileID: 7544170136027234540}
+  - component: {fileID: 8852252315189415494}
+  - component: {fileID: 3350790801918760871}
+  - component: {fileID: 2254134314157763110}
+  - component: {fileID: 1331482260199793480}
+  - component: {fileID: 8808360764778018121}
+  - component: {fileID: 2069763820533829961}
+  - component: {fileID: 3506513680546241895}
   m_Layer: 9
   m_Name: Player
   m_TagString: Untagged
@@ -36,7 +75,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 2, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 2155189130120123729}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &5457792295904276489
@@ -137,9 +177,10 @@ MonoBehaviour:
   preview: {fileID: 0}
   interactionRange: 4
   rayDistance: 100
-  rayMask:
+  obstacleMask:
     serializedVersion: 2
-    m_Bits: 307
+    m_Bits: 0
+  enableDigging: 1
 --- !u!143 &6258583038404893001
 CharacterController:
   m_ObjectHideFlags: 0
@@ -176,13 +217,17 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bc3104c2d6f570f4d9fe33a468caec1f, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ThirdPersonPlayerController
+  m_EditorClassIdentifier: Assembly-CSharp::FirstPersonPlayerController
   viewCamera: {fileID: 0}
+  eyeAnchor: {fileID: 2155189130120123729}
   walkSpeed: 3
-  sprintSpeed: 6
+  crouchSpeedMultiplier: 0.6
+  sprintSpeedMultiplier: 1.8
   acceleration: 20
-  turnSpeed: 720
   gravity: -20
+  jumpHeight: 1
+  standingHeight: 2
+  crouchingHeight: 1.2
 --- !u!114 &8254491928012310048
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -256,3 +301,149 @@ MonoBehaviour:
   SwitchTransformSpaceWhenParented: 0
   Interpolate: 1
   SlerpPosition: 0
+--- !u!114 &7544170136027234540
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8894249788821231030}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c17482e2f9c6edc41a83ec043d8c25c6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerActionBlocker
+--- !u!114 &8852252315189415494
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8894249788821231030}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ef79b3c23fe1335408b460f5ef9e27fd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerVisualController
+  worldRenderer: {fileID: 968360928490052157}
+  handColor: {r: 0.92, g: 0.72, b: 0.55, a: 1}
+--- !u!114 &3350790801918760871
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8894249788821231030}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 85d66321267aaec4ead217553a7668a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerItemController
+  slotItems:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  throwSpeedAtOneKilogram: 10
+  minimumThrowSpeed: 3
+  maximumThrowSpeed: 16
+--- !u!114 &2254134314157763110
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8894249788821231030}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 563309fe8c9b6b948be6de343d02867d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerInteractionController
+  aimCamera: {fileID: 0}
+  range: 3
+  interactionMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+--- !u!54 &1331482260199793480
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8894249788821231030}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 1
+  m_Constraints: 0
+  m_CollisionDetection: 0
+--- !u!114 &8808360764778018121
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8894249788821231030}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 643c876f443a10549a68736737f3adfe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerStunController
+  ShowTopMostFoldoutHeaderGroup: 1
+  stunDuration: 3
+  impactVelocity: 6
+  upwardVelocity: 2
+  ragdollBodies: []
+  ragdollColliders: []
+  animator: {fileID: 0}
+--- !u!114 &2069763820533829961
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8894249788821231030}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9587b28d2e22f4146b712a2739191b62, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerToolController
+  farmingTarget: {fileID: 8443551847383083355}
+  toolPrefabs:
+  - {fileID: 0}
+  - {fileID: 6554167530889415040, guid: 4ad6dbed7c72f9e49afa68da22a066e0, type: 3}
+  - {fileID: 4285649361813388354, guid: ad7bd2edd5cc5c14b9642d0934c56a4a, type: 3}
+  - {fileID: 6301548796106470916, guid: 09423d8ee63a74e44ba15bc21d764d72, type: 3}
+  - {fileID: 1496012693471277645, guid: 24d636832cb6a7f48886c92a9c3b583b, type: 3}
+  actionRange: 4
+  wateringCanCapacity: 8
+  actionMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+--- !u!114 &3506513680546241895
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8894249788821231030}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e4d5df31256b9a4293ce45c68a82783, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerTabletController
