@@ -49,8 +49,8 @@ public sealed class GroundGrid : MonoBehaviour
     public bool IsDug(Vector2Int cell) => ContainsCell(cell) && cells[cell.x, cell.y] != GroundCellState.BasicSoil;
     public bool CanDig(Vector2Int cell) => ContainsCell(cell) && cells[cell.x, cell.y] == GroundCellState.BasicSoil;
     public bool CanFill(Vector2Int cell) => ContainsCell(cell) && cells[cell.x, cell.y] != GroundCellState.BasicSoil;
-    public bool TryDig(Vector2Int cell) => TrySetState(cell, GroundCellState.FieldSoil);
-    public bool TryFill(Vector2Int cell) => TrySetState(cell, GroundCellState.BasicSoil);
+    public bool TryDig(Vector2Int cell) => TrySetCellState(cell, GroundCellState.FieldSoil);
+    public bool TryFill(Vector2Int cell) => TrySetCellState(cell, GroundCellState.BasicSoil);
 
     public bool CanUseHoeSecondary(Vector2Int cell) => ContainsCell(cell) && !HasPotato(cell);
     public bool CanUseHoePrimary(Vector2Int cell)
@@ -62,7 +62,7 @@ public sealed class GroundGrid : MonoBehaviour
     public bool TryUseHoeSecondary(Vector2Int cell)
     {
         if (!CanUseHoeSecondary(cell)) return false;
-        return TrySetState(cell, GetCellState(cell) == GroundCellState.BasicSoil
+        return TrySetCellState(cell, GetCellState(cell) == GroundCellState.BasicSoil
             ? GroundCellState.FieldSoil : GroundCellState.BasicSoil);
     }
 
@@ -70,7 +70,7 @@ public sealed class GroundGrid : MonoBehaviour
     {
         if (!CanUseHoePrimary(cell)) return false;
         if (GetCellState(cell) == GroundCellState.FieldSoil)
-            return TrySetState(cell, GroundCellState.PlantingHole);
+            return TrySetCellState(cell, GroundCellState.PlantingHole);
         if (soilCoverLayers[cell.x, cell.y] == byte.MaxValue) return false;
         soilCoverLayers[cell.x, cell.y]++;
         CellChanged?.Invoke(cell);
@@ -81,13 +81,13 @@ public sealed class GroundGrid : MonoBehaviour
     {
         if (!ContainsCell(cell) || GetCellState(cell) != GroundCellState.PlantingHole) return false;
         soilCoverLayers[cell.x, cell.y] = 1;
-        return TrySetState(cell, GroundCellState.PotatoCovered);
+        return TrySetCellState(cell, GroundCellState.PotatoCovered);
     }
 
     public bool TryRemovePotato(Vector2Int cell)
     {
         if (!HasPotato(cell)) return false;
-        return TrySetState(cell, GroundCellState.FieldSoil);
+        return TrySetCellState(cell, GroundCellState.FieldSoil);
     }
 
     public bool TryWater(Vector2Int cell)
@@ -98,12 +98,16 @@ public sealed class GroundGrid : MonoBehaviour
         return true;
     }
 
-    private bool TrySetState(Vector2Int cell, GroundCellState value)
+    /// <summary>
+    /// Changes one cell to the requested state and notifies the ground renderer.
+    /// Returns false when the cell is outside the grid or already has that state.
+    /// </summary>
+    public bool TrySetCellState(Vector2Int cell, GroundCellState state)
     {
-        if (!ContainsCell(cell) || cells[cell.x, cell.y] == value) return false;
-        cells[cell.x, cell.y] = value;
-        if (value != GroundCellState.PotatoCovered) soilCoverLayers[cell.x, cell.y] = 0;
-        if (value == GroundCellState.BasicSoil) watered[cell.x, cell.y] = false;
+        if (!ContainsCell(cell) || cells[cell.x, cell.y] == state) return false;
+        cells[cell.x, cell.y] = state;
+        if (state != GroundCellState.PotatoCovered) soilCoverLayers[cell.x, cell.y] = 0;
+        if (state == GroundCellState.BasicSoil) watered[cell.x, cell.y] = false;
         CellChanged?.Invoke(cell);
         return true;
     }
