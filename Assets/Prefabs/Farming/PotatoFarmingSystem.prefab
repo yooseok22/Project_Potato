@@ -49,3 +49,15 @@ MonoBehaviour:
   stageMappings:
   - stage: 0
     cellState: 3
+  - stage: 1
+    cellState: 4
+  - stage: 2
+    cellState: 5
+  - stage: 3
+    cellState: 6
+  - stage: 4
+    cellState: 7
+  - stage: 5
+    cellState: 8
+  - stage: 6
+    cellState: 9

@@ -788,6 +788,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WateringInteractionView
   promptRoot: {fileID: 1422341918}
   promptLabel: {fileID: 1758372625}
+  promptFont: {fileID: 0}
 --- !u!4 &1055539574 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3822226571236050513, guid: 30bdeb7c06d4e8d40a514535eabe56b0, type: 3}
