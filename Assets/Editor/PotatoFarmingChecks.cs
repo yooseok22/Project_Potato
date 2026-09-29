@@ -21,11 +21,13 @@ public static class PotatoFarmingChecks
             var root = new GameObject("FarmingChecks");
             SceneManager.MoveGameObjectToScene(root, scene);
             var ground = root.AddComponent<GroundGrid>();
-            ground.SendMessage("Awake"); // Initialize runtime grid storage in the isolated Edit Mode scene.
+            typeof(GroundGrid).GetMethod("Awake", System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic)?.Invoke(ground, null);
             var clock = root.AddComponent<WorldClock>();
             var system = root.AddComponent<PotatoFarmingSystem>();
             var a = new Vector2Int(1, 2);
             var b = new Vector2Int(3, 4);
+            var visualCell = new Vector2Int(10, 10);
             int objectsBefore = scene.GetRootGameObjects().Length;
             int notifications = 0;
             system.FarmingStageChanged += (g, cell, stage) =>
@@ -36,11 +38,24 @@ public static class PotatoFarmingChecks
             Check(!system.TryStartFarming(null, a, clock), "missing grid rejected");
             Check(!system.TryStartFarming(ground, a, null), "missing clock rejected");
             Check(!system.TryStartFarming(ground, new Vector2Int(-1, 0), clock), "invalid cell rejected");
-            ground.TrySetCellState(a, GroundCellState.PotatoCovered);
-            Check(system.TryStartFarming(ground, a, clock), "already-covered tile can register");
+            Check(ground.TryUseHoeSecondary(visualCell) &&
+                ground.GetCellState(visualCell) == GroundCellState.FieldSoil, "first hoe use digs field soil");
+            Check(ground.TryUseHoeSecondary(visualCell) &&
+                ground.GetCellState(visualCell) == GroundCellState.PlantingHole, "second hoe use creates tile 016");
+            for (int value = (int)GroundCellState.PlantingHole; value <= (int)GroundCellState.BoarDugField; value++)
+            {
+                var state = (GroundCellState)value;
+                ground.TrySetCellState(visualCell, state);
+                Check(TileVisualResolver.Resolve(ground, visualCell).Kind == 15 + (int)state - (int)GroundCellState.PlantingHole,
+                    state + " maps to its authored tile");
+            }
+            ground.TrySetCellState(a, GroundCellState.PlantingHole);
+            Check(system.TryStartFarming(ground, a, clock), "planting hole can register");
+            Check(ground.GetCellState(a) == GroundCellState.PotatoCovered, "planting switches to tile 017");
             Check(!system.TryStartFarming(ground, a, clock), "duplicate does not reset age");
             Check(system.TryGetFarmingTile(ground, a, out var first), "lookup by coordinates");
             clock.AdvanceBy(20);
+            ground.TrySetCellState(b, GroundCellState.PlantingHole);
             Check(system.TryStartFarming(ground, b, clock), "second planting");
             Check(ground.GetCellState(b) == GroundCellState.PotatoCovered, "initial state forwarded");
             system.TryGetFarmingTile(ground, b, out var second);
@@ -51,6 +66,10 @@ public static class PotatoFarmingChecks
                 "staggered planting grows independently");
             Check(system.GetFarmingTiles().Length == 2 && notifications == 3, "registered tiles and stage notifications");
             Check(ground.GetCellState(a) == GroundCellState.PotatoCovered, "unmapped stage preserves ground state");
+            Check(ground.TrySetCellState(a, GroundCellState.SproutFirst) &&
+                ground.GetCellState(a) == GroundCellState.SproutFirst, "external state change switches to tile 018");
+            Check(ground.TrySetCellState(a, GroundCellState.BoarDugField) &&
+                ground.GetCellState(a) == GroundCellState.BoarDugField, "external state change switches to tile 024");
             // Stand-in mapping verifies forwarding without adding states owned by the ground team.
             var settings = new SerializedObject(system);
             var mappings = settings.FindProperty("stageMappings");
@@ -63,6 +82,7 @@ public static class PotatoFarmingChecks
             Check(ground.GetCellState(b) == GroundCellState.FieldSoil, "configured stage uses TrySetCellState");
             Check(system.StopFarming(ground, a) && !system.StopFarming(ground, a), "unregister is single-use");
             Check(system.FarmingCount == 1 && !system.TryGetFarmingTile(ground, a, out _), "unregister removes coordinate");
+            ground.TrySetCellState(a, GroundCellState.PlantingHole);
             Check(system.TryStartFarming(ground, a, clock), "removed coordinate can register again");
             system.TryGetFarmingTile(ground, a, out var replanted);
             Check(replanted.AgeSeconds == 0, "replant starts new timer");
@@ -84,6 +104,7 @@ public static class PotatoFarmingChecks
             clock.AdvanceBy(600);
             Check(notifications == atMaturity, "mature tiles do not emit repeated growth events");
             system.StopFarming(ground, a);
+            ground.TrySetCellState(a, GroundCellState.PlantingHole);
             system.TryStartFarming(ground, a, clock);
             system.FarmingStageChanged += (g, cell, stage) =>
             {

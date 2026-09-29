@@ -1,11 +1,11 @@
 using UnityEngine;
 
-// Selects one complete authored tile per grid cell from the final 001-014 set.
+// Selects one complete authored tile per grid cell from the final 001-024 set.
 public static class TileVisualResolver
 {
     public struct Visual
     {
-        public int Kind; // 0..13 maps directly to v2-001..v2-014.
+        public int Kind; // 0..23 maps directly to v2-001..v2-024.
         public int QuarterTurns;
         public bool MirrorX;
 
@@ -40,7 +40,10 @@ public static class TileVisualResolver
 
     public static Visual Resolve(GroundGrid grid, Vector2Int cell)
     {
-        if (!grid.IsDug(cell)) return new Visual { Kind = 0 };
+        var state = grid.GetCellState(cell);
+        if (state == GroundCellState.BasicSoil) return new Visual { Kind = 0 };
+        if (state != GroundCellState.FieldSoil)
+            return new Visual { Kind = 15 + (int)state - (int)GroundCellState.PlantingHole };
 
         int cardinalMask = 0;
         for (int direction = 0; direction < CardinalOffsets.Length; direction++)
@@ -100,38 +103,30 @@ public static class TileVisualResolver
         switch (CountBits(missingMask))
         {
             case 0:
-                return new Visual { Kind = 13 }; // 014, all eight neighbours dug.
+                return new Visual { Kind = 14 }; // 015, all eight neighbours dug.
             case 1:
                 return Transformed(9, AllCardinals, AllDiagonals & ~SouthEast,
                     AllCardinals, diagonalMask); // 010.
             case 2:
-                // 011 contains an adjacent pair of raised corners. Opposite missing
-                // diagonals have no exact authored prefab, so use the closest 011
-                // orientation while keeping the rule deterministic.
-                return ClosestTwoDiagonalTransform(diagonalMask);
+                // 011 covers adjacent raised corners; 012 covers the formerly
+                // missing opposite-corner case in the expanded 001-015 set.
+                if (AreOppositeDiagonals(diagonalMask))
+                    return Transformed(11, AllCardinals, NorthWest | SouthEast,
+                        AllCardinals, diagonalMask); // 012.
+                return Transformed(10, AllCardinals, NorthEast | NorthWest,
+                    AllCardinals, diagonalMask); // 011.
             case 3:
-                return Transformed(11, AllCardinals, SouthEast,
-                    AllCardinals, diagonalMask); // 012.
+                return Transformed(12, AllCardinals, SouthEast,
+                    AllCardinals, diagonalMask); // 013.
             default:
-                return new Visual { Kind = 12 }; // 013, all diagonals remain undug.
+                return new Visual { Kind = 13 }; // 014, all diagonals remain undug.
         }
     }
 
-    private static Visual ClosestTwoDiagonalTransform(int targetDiagonals)
+    private static bool AreOppositeDiagonals(int diagonalMask)
     {
-        Visual best = default;
-        int bestMatches = -1;
-        int baseDiagonals = NorthEast | NorthWest; // 011: southern corners are raised.
-        for (int mirror = 0; mirror < 2; mirror++)
-            for (int turns = 0; turns < 4; turns++)
-            {
-                int transformed = TransformDiagonalMask(baseDiagonals, turns, mirror != 0);
-                int matches = 4 - CountBits(transformed ^ targetDiagonals);
-                if (matches <= bestMatches) continue;
-                bestMatches = matches;
-                best = new Visual { Kind = 10, QuarterTurns = turns, MirrorX = mirror != 0 };
-            }
-        return best;
+        return diagonalMask == (NorthEast | SouthWest) ||
+               diagonalMask == (SouthEast | NorthWest);
     }
 
     private static int SharedDiagonal(int cardinalMask)

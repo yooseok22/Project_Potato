@@ -5,8 +5,10 @@ using UnityEngine.Rendering;
 [RequireComponent(typeof(GroundGrid))]
 public sealed class GroundTileRenderer : MonoBehaviour
 {
-    [Header("Final complete-cell tiles (001-014)")]
-    [SerializeField] private GameObject[] tilePrefabs = new GameObject[14];
+    private const int TileKindCount = 24;
+
+    [Header("Final complete-cell tiles (001-024)")]
+    [SerializeField] private GameObject[] tilePrefabs = new GameObject[TileKindCount];
     [SerializeField, Min(0.01f)] private float prefabCellSize = 2f;
     [SerializeField, Range(1, 64)] private int chunkSize = 16;
 
@@ -64,15 +66,15 @@ public sealed class GroundTileRenderer : MonoBehaviour
     {
         Clear();
         grid = GetComponent<GroundGrid>();
-        if (tilePrefabs == null || tilePrefabs.Length != 14)
+        if (tilePrefabs == null || tilePrefabs.Length != TileKindCount)
         {
-            Debug.LogError("Assign exactly fourteen final tile prefabs (001-014).", this);
+            Debug.LogError("Assign exactly twenty-four final tile prefabs (001-024).", this);
             return;
         }
         foreach (var prefab in tilePrefabs)
         {
             if (prefab) continue;
-            Debug.LogError("Assign all fourteen final tile prefabs (001-014).", this);
+            Debug.LogError("Assign all twenty-four final tile prefabs (001-024).", this);
             return;
         }
 
@@ -80,7 +82,7 @@ public sealed class GroundTileRenderer : MonoBehaviour
         materials.Clear();
         try
         {
-            sources = new TileMeshSource[14];
+            sources = new TileMeshSource[TileKindCount];
             for (int index = 0; index < sources.Length; index++)
                 sources[index] = TileMeshSource.Create(tilePrefabs[index], materials);
         }

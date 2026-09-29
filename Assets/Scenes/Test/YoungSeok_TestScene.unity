@@ -1219,20 +1219,30 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GroundTileRenderer
   tilePrefabs:
-  - {fileID: 6244745093435529678, guid: 4f9048a0d516caa4b99c1fa0a2a3bef6, type: 3}
-  - {fileID: 5652216071235487430, guid: 92c06c437e47b8f4e84f5b679bd04f90, type: 3}
-  - {fileID: 5982369584208394041, guid: 1162e58bd3467f446a0ab2135bd16400, type: 3}
-  - {fileID: 4664900410655441595, guid: 372436e653b3fbc4fa0c434d7b7b9f4f, type: 3}
-  - {fileID: 2569521278859488329, guid: efef6a03e896cb140a0628e13cedc514, type: 3}
-  - {fileID: 4809565707500379027, guid: 19a614a80bdaa8b438e5cf55dfb91b1f, type: 3}
-  - {fileID: 7036003217405710723, guid: 7d15e7e1d259d6a4891bb728c8a3537d, type: 3}
-  - {fileID: 115789706627626118, guid: 3724d8a8832ebab4b98dedf49b8cbad8, type: 3}
-  - {fileID: 1217314676370696780, guid: 59969f40217057c45a65f8d1676af697, type: 3}
-  - {fileID: 562535553557634068, guid: 3e44cab05025e1d4497d0828879fb85f, type: 3}
-  - {fileID: 4461303399829307360, guid: cc03e50161df44549ae3964147bde8fb, type: 3}
-  - {fileID: 895928690274352827, guid: 257d6ee86563b8240a766ea057af0a1b, type: 3}
-  - {fileID: 4861002544673557772, guid: aa8c1389aa7c3b24299616abecacc5d4, type: 3}
-  - {fileID: 6943204933240476224, guid: 121d0e28c26c3a44f97932be17a67df0, type: 3}
+  - {fileID: 3764664943577076143, guid: 4f9048a0d516caa4b99c1fa0a2a3bef6, type: 3}
+  - {fileID: 3453732662623634525, guid: 92c06c437e47b8f4e84f5b679bd04f90, type: 3}
+  - {fileID: 7178895618214395829, guid: 1162e58bd3467f446a0ab2135bd16400, type: 3}
+  - {fileID: 1305768236945838606, guid: 372436e653b3fbc4fa0c434d7b7b9f4f, type: 3}
+  - {fileID: 9215357181981444090, guid: efef6a03e896cb140a0628e13cedc514, type: 3}
+  - {fileID: 869950367086446369, guid: 19a614a80bdaa8b438e5cf55dfb91b1f, type: 3}
+  - {fileID: 355296402934160857, guid: 7d15e7e1d259d6a4891bb728c8a3537d, type: 3}
+  - {fileID: 236017848647192725, guid: 3724d8a8832ebab4b98dedf49b8cbad8, type: 3}
+  - {fileID: 4573650411269129917, guid: 59969f40217057c45a65f8d1676af697, type: 3}
+  - {fileID: 2667168346933980144, guid: 3e44cab05025e1d4497d0828879fb85f, type: 3}
+  - {fileID: 5557751240897762175, guid: cc03e50161df44549ae3964147bde8fb, type: 3}
+  - {fileID: 1519729675129302143, guid: 257d6ee86563b8240a766ea057af0a1b, type: 3}
+  - {fileID: 7592259122605218708, guid: aa8c1389aa7c3b24299616abecacc5d4, type: 3}
+  - {fileID: 2015170140424142464, guid: 121d0e28c26c3a44f97932be17a67df0, type: 3}
+  - {fileID: 2157611096706492773, guid: 9677cb3cc705f7243b210db7860b8879, type: 3}
+  - {fileID: 6760006341361976907, guid: ce56b9dca2b6d424782fe9bc0490fad2, type: 3}
+  - {fileID: 222446701592697157, guid: 4f98b156e5642a24991945db09979020, type: 3}
+  - {fileID: 4754642135015413161, guid: 54d58f326e5f6d642af9415aafeeaf59, type: 3}
+  - {fileID: 1570713830353315012, guid: 5beff931f6f5b4d47a8eb6b045eae7ef, type: 3}
+  - {fileID: 5127370127644640481, guid: 6875fe75263d72f48879439c9a6164a7, type: 3}
+  - {fileID: 3438832879996462430, guid: f72b7a4669595b04e90f47736000e7ab, type: 3}
+  - {fileID: 563432593445861021, guid: 8fa16164511bc644a88cd9f167368bad, type: 3}
+  - {fileID: 8043219789846997147, guid: 62ef86efc78c5624e936726321635a92, type: 3}
+  - {fileID: 7394543731983019882, guid: a9f806a22ec02174498209efe16a609f, type: 3}
   prefabCellSize: 2
   chunkSize: 16
 --- !u!1 &1499708886
@@ -1362,6 +1372,17 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
+--- !u!114 &1695582409 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8046384701566211486, guid: cff37efee993e9c4ebda089a163cf38b, type: 3}
+  m_PrefabInstance: {fileID: 951763327}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bbb1824f84c3b4479ed792c7e59f90b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PotatoFarmingSystem
 --- !u!1 &1758372624
 GameObject:
   m_ObjectHideFlags: 0
@@ -1507,6 +1528,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2069763820533829961, guid: 30bdeb7c06d4e8d40a514535eabe56b0, type: 3}
+      propertyPath: farmingSystem
+      value: 
+      objectReference: {fileID: 1695582409}
     - target: {fileID: 2914183081451298870, guid: 30bdeb7c06d4e8d40a514535eabe56b0, type: 3}
       propertyPath: viewCamera
       value: 
@@ -1569,7 +1594,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8254491928012310048, guid: 30bdeb7c06d4e8d40a514535eabe56b0, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 784125593
+      value: 3062406936
       objectReference: {fileID: 0}
     - target: {fileID: 8443551847383083355, guid: 30bdeb7c06d4e8d40a514535eabe56b0, type: 3}
       propertyPath: ground
