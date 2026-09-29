@@ -54,38 +54,40 @@ public static class PotatoFarmingChecks
             Check(ground.GetCellState(a) == GroundCellState.PotatoCovered, "planting switches to tile 017");
             Check(!system.TryStartFarming(ground, a, clock), "duplicate does not reset age");
             Check(system.TryGetFarmingTile(ground, a, out var first), "lookup by coordinates");
+            clock.AdvanceBy(600);
+            Check(!first.IsWatered && first.GrowthStartedAt == null && first.AgeSeconds == 0 &&
+                first.Progress == 0 && !first.IsReadyToHarvest &&
+                ground.GetCellState(a) == GroundCellState.PotatoCovered && notifications == 1,
+                "unwatered crop does not grow during a long wait");
+            Check(!system.TryWater(ground, b), "cannot water unregistered tile");
+            Check(!system.TryWater(null, a), "cannot water missing grid");
+            Check(!system.TryWater(ground, new Vector2Int(-1, 0)), "cannot water invalid coordinates");
+            Check(system.TryWater(ground, a) && first.GrowthStartedAt == clock.ElapsedSeconds,
+                "first watering records growth start");
             clock.AdvanceBy(20);
+            Check(!system.TryWater(ground, a) && first.AgeSeconds == 20, "repeat watering does not reset growth");
             ground.TrySetCellState(b, GroundCellState.PlantingHole);
             Check(system.TryStartFarming(ground, b, clock), "second planting");
             Check(ground.GetCellState(b) == GroundCellState.PotatoCovered, "initial state forwarded");
             system.TryGetFarmingTile(ground, b, out var second);
+            Check(system.TryWater(ground, b), "water second tile independently");
             clock.AdvanceBy(20);
             system.RefreshGrowth();
             system.RefreshGrowth();
             Check(first.Stage == PotatoGrowthStage.Sprout && second.Stage == PotatoGrowthStage.SoilMound,
                 "staggered planting grows independently");
             Check(system.GetFarmingTiles().Length == 2 && notifications == 3, "registered tiles and stage notifications");
-            Check(ground.GetCellState(a) == GroundCellState.PotatoCovered, "unmapped stage preserves ground state");
-            Check(ground.TrySetCellState(a, GroundCellState.SproutFirst) &&
-                ground.GetCellState(a) == GroundCellState.SproutFirst, "external state change switches to tile 018");
-            Check(ground.TrySetCellState(a, GroundCellState.BoarDugField) &&
-                ground.GetCellState(a) == GroundCellState.BoarDugField, "external state change switches to tile 024");
-            // Stand-in mapping verifies forwarding without adding states owned by the ground team.
-            var settings = new SerializedObject(system);
-            var mappings = settings.FindProperty("stageMappings");
-            mappings.arraySize = 2;
-            mappings.GetArrayElementAtIndex(1).FindPropertyRelative("stage").enumValueIndex = (int)PotatoGrowthStage.Sprout;
-            mappings.GetArrayElementAtIndex(1).FindPropertyRelative("cellState").enumValueIndex = (int)GroundCellState.FieldSoil;
-            settings.ApplyModifiedPropertiesWithoutUndo();
+            Check(ground.GetCellState(a) == GroundCellState.SproutFirst, "40 seconds forwards SproutFirst");
             clock.AdvanceBy(20);
-            system.RefreshGrowth();
-            Check(ground.GetCellState(b) == GroundCellState.FieldSoil, "configured stage uses TrySetCellState");
+            Check(ground.GetCellState(b) == GroundCellState.SproutFirst, "second tile forwards independently");
             Check(system.StopFarming(ground, a) && !system.StopFarming(ground, a), "unregister is single-use");
             Check(system.FarmingCount == 1 && !system.TryGetFarmingTile(ground, a, out _), "unregister removes coordinate");
             ground.TrySetCellState(a, GroundCellState.PlantingHole);
             Check(system.TryStartFarming(ground, a, clock), "removed coordinate can register again");
             system.TryGetFarmingTile(ground, a, out var replanted);
             Check(replanted.AgeSeconds == 0, "replant starts new timer");
+            Check(!replanted.IsWatered, "replant requires fresh watering");
+            Check(system.TryWater(ground, a), "water replanted tile");
             Check(root.transform.childCount == 0 && scene.GetRootGameObjects().Length == objectsBefore,
                 "planting creates no GameObjects");
             clock.IsPaused = true;
@@ -95,17 +97,25 @@ public static class PotatoFarmingChecks
             clock.Speed = 2;
             clock.Tick(20);
             Check(replanted.Stage == PotatoGrowthStage.Sprout, "central clock subscription and speed");
-            clock.AdvanceBy(259.999);
-            Check(!replanted.IsReadyToHarvest, "not ready before 300 seconds");
-            clock.AdvanceBy(0.0011);
-            Check(replanted.IsReadyToHarvest && replanted.Stage == PotatoGrowthStage.WitheredSixLeaves,
-                "300 seconds matures crop");
+            double[] boundaries = { 80, 150, 220, 260, 300 };
+            GroundCellState[] expected = { GroundCellState.SproutSecond, GroundCellState.SproutThird,
+                GroundCellState.EarlyHarvest, GroundCellState.ReadyToHarvest, GroundCellState.LateHarvest };
+            for (int i = 0; i < boundaries.Length; i++)
+            {
+                clock.AdvanceBy(boundaries[i] - replanted.AgeSeconds - 0.001);
+                Check(ground.GetCellState(a) != expected[i], "before boundary " + boundaries[i]);
+                if (boundaries[i] == 260) Check(!replanted.IsReadyToHarvest, "not ready before 260 seconds");
+                clock.AdvanceBy(0.0011);
+                Check(ground.GetCellState(a) == expected[i], "state at boundary " + boundaries[i]);
+                if (boundaries[i] >= 260) Check(replanted.IsReadyToHarvest, "ready from 260 seconds onward");
+            }
             int atMaturity = notifications;
             clock.AdvanceBy(600);
             Check(notifications == atMaturity, "mature tiles do not emit repeated growth events");
             system.StopFarming(ground, a);
             ground.TrySetCellState(a, GroundCellState.PlantingHole);
             system.TryStartFarming(ground, a, clock);
+            system.TryWater(ground, a);
             system.FarmingStageChanged += (g, cell, stage) =>
             {
                 if (cell == a && stage == PotatoGrowthStage.Sprout) system.StopFarming(g, cell);

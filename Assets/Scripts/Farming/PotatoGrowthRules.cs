@@ -8,6 +8,7 @@ public enum PotatoGrowthStage
 public static class PotatoGrowthRules
 {
     public const double BaseGrowthSeconds = 300d;
+    public const double ReadyToHarvestSeconds = 260d;
     private static readonly double[] StageStarts = { 0d, 40d, 80d, 150d, 220d, 260d, 300d };
 
     public static PotatoGrowthStage StageAt(double ageSeconds)

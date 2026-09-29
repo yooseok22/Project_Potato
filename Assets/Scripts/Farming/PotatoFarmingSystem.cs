@@ -19,7 +19,13 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
     [Tooltip("Only mapped stages call TrySetCellState. Add mappings when the ground team adds the corresponding states.")]
     [SerializeField] private StageMapping[] stageMappings =
     {
-        new StageMapping { stage = PotatoGrowthStage.SoilMound, cellState = GroundCellState.PotatoCovered }
+        new StageMapping { stage = PotatoGrowthStage.SoilMound, cellState = GroundCellState.PotatoCovered },
+        new StageMapping { stage = PotatoGrowthStage.Sprout, cellState = GroundCellState.SproutFirst },
+        new StageMapping { stage = PotatoGrowthStage.TwoLargeLeaves, cellState = GroundCellState.SproutSecond },
+        new StageMapping { stage = PotatoGrowthStage.FourLargeLeaves, cellState = GroundCellState.SproutThird },
+        new StageMapping { stage = PotatoGrowthStage.SixLargeLeaves, cellState = GroundCellState.EarlyHarvest },
+        new StageMapping { stage = PotatoGrowthStage.FreshSixLargeLeaves, cellState = GroundCellState.ReadyToHarvest },
+        new StageMapping { stage = PotatoGrowthStage.WitheredSixLeaves, cellState = GroundCellState.LateHarvest }
     };
 
     public sealed class FarmingTile
@@ -27,10 +33,14 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
         public GroundGrid Ground { get; }
         public Vector2Int Cell { get; }
         public double PlantedAt { get; }
+        public double? GrowthStartedAt { get; internal set; }
+        public bool IsWatered => GrowthStartedAt.HasValue;
         public PotatoGrowthStage Stage { get; internal set; }
         private readonly WorldClock clock;
-        public double AgeSeconds => clock ? Math.Max(0d, clock.ElapsedSeconds - PlantedAt) : 0d;
-        public bool IsReadyToHarvest => AgeSeconds >= PotatoGrowthRules.BaseGrowthSeconds;
+        /// <summary>Growth age, excluding the wait between planting and first watering.</summary>
+        public double AgeSeconds => clock && GrowthStartedAt.HasValue
+            ? Math.Max(0d, clock.ElapsedSeconds - GrowthStartedAt.Value) : 0d;
+        public bool IsReadyToHarvest => AgeSeconds >= PotatoGrowthRules.ReadyToHarvestSeconds;
         public float Progress => (float)Math.Min(1d, AgeSeconds / PotatoGrowthRules.BaseGrowthSeconds);
 
         internal FarmingTile(GroundGrid ground, Vector2Int cell, WorldClock clock)
@@ -89,6 +99,18 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
     public bool TryGetFarmingTile(Vector2Int cell, out FarmingTile tile)
         => TryGetFarmingTile(ground, cell, out tile);
 
+    /// <summary>Notify after watering succeeds. First watering starts growth; repeats never reset time.
+    /// Does not perform the watering interaction or modify GroundGrid's water state.</summary>
+    public bool TryWater(Vector2Int cell) => TryWater(ground, cell);
+
+    public bool TryWater(GroundGrid targetGround, Vector2Int cell)
+    {
+        if (!targetGround || !clock || !targetGround.ContainsCell(cell) ||
+            !farmingTiles.TryGetValue((targetGround, cell), out var tile) || tile.IsWatered) return false;
+        tile.GrowthStartedAt = clock.ElapsedSeconds;
+        return true;
+    }
+
     /// <summary>Unregister after harvest/removal. The caller owns the resulting tile state.</summary>
     public bool StopFarming(GroundGrid targetGround, Vector2Int cell)
     {
@@ -142,7 +164,7 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
         {
             pendingGrowth.Clear();
             foreach (var tile in farmingTiles.Values)
-                if (tile.Stage != PotatoGrowthStage.WitheredSixLeaves) pendingGrowth.Add(tile);
+                if (tile.IsWatered && tile.Stage != PotatoGrowthStage.WitheredSixLeaves) pendingGrowth.Add(tile);
             foreach (var tile in pendingGrowth)
             {
                 var key = (tile.Ground, tile.Cell);
