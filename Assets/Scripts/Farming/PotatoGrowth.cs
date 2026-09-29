@@ -1,12 +1,6 @@
 using System;
 using UnityEngine;
 
-public enum PotatoGrowthStage
-{
-    SoilMound, Sprout, TwoLargeLeaves, FourLargeLeaves,
-    SixLargeLeaves, FreshSixLargeLeaves, WitheredSixLeaves
-}
-
 /// <summary>A tile-independent plant using its planting timestamp on a shared clock.</summary>
 [DisallowMultipleComponent]
 public sealed class PotatoGrowth : MonoBehaviour
@@ -25,7 +19,7 @@ public sealed class PotatoGrowth : MonoBehaviour
     private double plantedAt;
     private WorldClock subscribedClock;
 
-    public const double BaseGrowthSeconds = 300d;
+    public const double BaseGrowthSeconds = PotatoGrowthRules.BaseGrowthSeconds;
     public bool IsPlanted { get; private set; }
     public PotatoGrowthStage Stage { get; private set; }
     public string StageName => StageNames[(int)Stage];
@@ -97,12 +91,7 @@ public sealed class PotatoGrowth : MonoBehaviour
         }
     }
 
-    public static PotatoGrowthStage StageAt(double ageSeconds)
-    {
-        for (int i = StageStarts.Length - 1; i > 0; i--)
-            if (ageSeconds >= StageStarts[i]) return (PotatoGrowthStage)i;
-        return PotatoGrowthStage.SoilMound;
-    }
+    public static PotatoGrowthStage StageAt(double ageSeconds) => PotatoGrowthRules.StageAt(ageSeconds);
 
     public bool TryHarvest()
     {
@@ -169,3 +158,4 @@ public sealed class PotatoGrowth : MonoBehaviour
         if (Application.isPlaying && clock) Plant(clock);
     }
 }
+

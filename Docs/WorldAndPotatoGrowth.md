@@ -1,5 +1,7 @@
 # 월드 시간과 감자 성장
 
+현재 타일 농사는 `PotatoFarmingSystem`이 좌표별 데이터를 중앙 관리한다. 사용법은 `Docs/PotatoFarmingIntegration.md` 참고. 아래 PotatoGrowth 오브젝트/프리팹 사용법은 기존 도구 호환용 샘플에 대한 설명이며, 현재 Yuseok 씬에서는 해당 샘플을 제거했다.
+
 ## 사용
 
 - 현재 작업 씬: `Assets/Scenes/Yuseok/Yuseok.unity`.
@@ -24,3 +26,4 @@
 비활성화 중에도 월드 시간이 흐르면 다시 활성화할 때 성장 상태가 따라잡는다. 씬을 새로 로드하면 시간도 새로 시작한다. 저장/불러오기, 오프라인 성장, 씬 간 시간 유지, 멀티플레이 시간 동기화 및 실제 조명 변화는 이번 구현 범위에 포함하지 않았다.
 
 검증: Unity 메뉴 `Tools > Project Potato > Validate World and Potato Growth`. 별도 Preview Scene에서 경계 시각, 일시정지, 배속, 건너뛰기, 수확, 재식재, 비활성화 후 복귀, 하루 길이 독립성을 검사한다.
+
