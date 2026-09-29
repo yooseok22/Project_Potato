@@ -3,10 +3,17 @@ using UnityEngine;
 
 public enum GroundCellState : byte
 {
-    BasicSoil,
-    FieldSoil,
-    PlantingHole,
-    PotatoCovered
+    BasicSoil = 0,
+    FieldSoil = 1,
+    PlantingHole = 2,        // Tile 016
+    PotatoCovered = 3,       // Tile 017
+    SproutFirst = 4,         // Tile 018
+    SproutSecond = 5,        // Tile 019
+    SproutThird = 6,         // Tile 020
+    EarlyHarvest = 7,        // Tile 021
+    ReadyToHarvest = 8,      // Tile 022
+    LateHarvest = 9,         // Tile 023
+    BoarDugField = 10        // Tile 024
 }
 
 public sealed class GroundGrid : MonoBehaviour
@@ -43,7 +50,12 @@ public sealed class GroundGrid : MonoBehaviour
     public GroundCellState GetCellState(Vector2Int cell) => ContainsCell(cell)
         ? cells[cell.x, cell.y] : GroundCellState.BasicSoil;
     public int GetSoilCoverLayers(Vector2Int cell) => ContainsCell(cell) ? soilCoverLayers[cell.x, cell.y] : 0;
-    public bool HasPotato(Vector2Int cell) => GetCellState(cell) == GroundCellState.PotatoCovered;
+    public bool HasPotato(Vector2Int cell)
+    {
+        var state = GetCellState(cell);
+        return state >= GroundCellState.PotatoCovered && state <= GroundCellState.LateHarvest;
+    }
+    public bool CanPlant(Vector2Int cell) => GetCellState(cell) == GroundCellState.PlantingHole;
     public bool IsWatered(Vector2Int cell) => ContainsCell(cell) && watered[cell.x, cell.y];
     public bool CanWater(Vector2Int cell) => IsDug(cell) && !IsWatered(cell);
     public bool IsDug(Vector2Int cell) => ContainsCell(cell) && cells[cell.x, cell.y] != GroundCellState.BasicSoil;
@@ -52,18 +64,29 @@ public sealed class GroundGrid : MonoBehaviour
     public bool TryDig(Vector2Int cell) => TrySetCellState(cell, GroundCellState.FieldSoil);
     public bool TryFill(Vector2Int cell) => TrySetCellState(cell, GroundCellState.BasicSoil);
 
-    public bool CanUseHoeSecondary(Vector2Int cell) => ContainsCell(cell) && !HasPotato(cell);
+    public bool CanUseHoeSecondary(Vector2Int cell)
+    {
+        var state = GetCellState(cell);
+        return state == GroundCellState.BasicSoil || state == GroundCellState.FieldSoil;
+    }
     public bool CanUseHoePrimary(Vector2Int cell)
     {
         var state = GetCellState(cell);
-        return state == GroundCellState.FieldSoil || state == GroundCellState.PotatoCovered;
+        return state == GroundCellState.FieldSoil || HasPotato(cell);
     }
 
     public bool TryUseHoeSecondary(Vector2Int cell)
     {
         if (!CanUseHoeSecondary(cell)) return false;
-        return TrySetCellState(cell, GetCellState(cell) == GroundCellState.BasicSoil
-            ? GroundCellState.FieldSoil : GroundCellState.BasicSoil);
+        switch (GetCellState(cell))
+        {
+            case GroundCellState.BasicSoil:
+                return TrySetCellState(cell, GroundCellState.FieldSoil);
+            case GroundCellState.FieldSoil:
+                return TrySetCellState(cell, GroundCellState.PlantingHole);
+            default:
+                return false;
+        }
     }
 
     public bool TryUseHoePrimary(Vector2Int cell)
@@ -105,12 +128,36 @@ public sealed class GroundGrid : MonoBehaviour
     public bool TrySetCellState(Vector2Int cell, GroundCellState state)
     {
         if (!ContainsCell(cell) || cells[cell.x, cell.y] == state) return false;
+        GroundCellState previousState = cells[cell.x, cell.y];
         cells[cell.x, cell.y] = state;
-        if (state != GroundCellState.PotatoCovered) soilCoverLayers[cell.x, cell.y] = 0;
+        if (!HasPotatoState(state)) soilCoverLayers[cell.x, cell.y] = 0;
         if (state == GroundCellState.BasicSoil) watered[cell.x, cell.y] = false;
         CellChanged?.Invoke(cell);
+        LogFarmingStateChange(cell, previousState, state);
         return true;
     }
+
+    private static bool HasPotatoState(GroundCellState state)
+        => state >= GroundCellState.PotatoCovered && state <= GroundCellState.LateHarvest;
+
+    private void LogFarmingStateChange(Vector2Int cell, GroundCellState previousState, GroundCellState nextState)
+    {
+        if (previousState < GroundCellState.PotatoCovered && nextState < GroundCellState.PotatoCovered) return;
+
+        Debug.Log(
+            $"[Ground State] Ground='{name}', Cell={cell}, " +
+            $"{FormatState(previousState)} -> {FormatState(nextState)}",
+            this);
+    }
+
+    private static string FormatState(GroundCellState state)
+    {
+        int tileNumber = state >= GroundCellState.PlantingHole
+            ? 16 + (int)state - (int)GroundCellState.PlantingHole
+            : state == GroundCellState.BasicSoil ? 1 : 0;
+        return tileNumber > 0 ? $"{state} (Tile {tileNumber:000})" : state.ToString();
+    }
+
     public bool TryGetCell(Ray ray, float maximumDistance, out Vector2Int cell, out float distance)
     {
         cell = default;

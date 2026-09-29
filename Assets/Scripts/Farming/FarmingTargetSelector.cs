@@ -16,7 +16,9 @@ public sealed class FarmingTargetSelector : MonoBehaviour
     public bool CanFarm { get; private set; }
     public bool CanFill { get; private set; }
     public bool CanWater { get; private set; }
+    public bool CanPlant { get; private set; }
     public Vector2Int SelectedCell { get; private set; }
+    public GroundGrid Ground => ground;
 
     public void Configure(Camera camera, Transform target, GroundGrid grid, FarmingPreviewView view, LayerMask mask)
     {
@@ -25,9 +27,10 @@ public sealed class FarmingTargetSelector : MonoBehaviour
     private void LateUpdate()
     {
         var items = player ? player.GetComponent<PlayerItemController>() : null;
-        if (items && items.SelectedSlot != PlayerItemSlot.Hoe && items.SelectedSlot != PlayerItemSlot.WateringCan)
+        if (items && items.SelectedSlot != PlayerItemSlot.Hands &&
+            items.SelectedSlot != PlayerItemSlot.Hoe && items.SelectedSlot != PlayerItemSlot.WateringCan)
         {
-            HasTarget = CanFarm = CanFill = CanWater = false;
+            HasTarget = CanFarm = CanFill = CanWater = CanPlant = false;
             if (preview) preview.Hide();
             return;
         }
@@ -69,9 +72,23 @@ public sealed class FarmingTargetSelector : MonoBehaviour
         RefreshTarget();
         return changed;
     }
+    public bool TryPlantSelected(PotatoFarmingSystem farmingSystem)
+    {
+        RefreshTarget();
+        if (!farmingSystem || !HasTarget || !CanReachSelected() || !ground.CanPlant(SelectedCell)) return false;
+        Vector2Int cell = SelectedCell;
+        if (!ground.TrySetCellState(cell, GroundCellState.PotatoCovered)) return false;
+        bool changed = farmingSystem.TryStartFarming(ground, cell);
+        if (!changed) ground.TrySetCellState(cell, GroundCellState.PlantingHole);
+        else Debug.Log(
+            $"[Farming Handoff] Ground='{ground.name}', Cell={cell}, State={GroundCellState.PotatoCovered}, Tile=017 -> PotatoFarmingSystem",
+            farmingSystem);
+        RefreshTarget();
+        return changed;
+    }
     public void RefreshTarget()
     {
-        HasTarget = CanFarm = CanFill = CanWater = false;
+        HasTarget = CanFarm = CanFill = CanWater = CanPlant = false;
         if (!aimCamera || !player || !ground || !preview) { if (preview) preview.Hide(); return; }
         Ray ray = aimCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
         if (!ground.TryGetCell(ray, rayDistance, out Vector2Int cell, out float distance)
@@ -89,6 +106,7 @@ public sealed class FarmingTargetSelector : MonoBehaviour
         CanFarm = ground.CanUseHoeSecondary(cell) && inRange;
         CanFill = ground.CanUseHoePrimary(cell) && inRange;
         CanWater = ground.CanWater(cell) && inRange;
+        CanPlant = ground.CanPlant(cell) && inRange;
         var items = player.GetComponent<PlayerItemController>();
         if (items && items.SelectedSlot == PlayerItemSlot.Hoe)
             preview.Show(center, ground.CellSize, CanFarm || CanFill);
@@ -112,5 +130,5 @@ public sealed class FarmingTargetSelector : MonoBehaviour
         }
         return false;
     }
-    private void OnDisable() { HasTarget = CanFarm = CanFill = CanWater = false; if (preview) preview.Hide(); }
+    private void OnDisable() { HasTarget = CanFarm = CanFill = CanWater = CanPlant = false; if (preview) preview.Hide(); }
 }

@@ -7,6 +7,7 @@ using UnityEngine.InputSystem;
 public sealed class PlayerToolController : MonoBehaviour
 {
     [SerializeField] private FarmingTargetSelector farmingTarget;
+    [SerializeField] private PotatoFarmingSystem farmingSystem;
     [SerializeField] private GameObject[] toolPrefabs = new GameObject[5];
     [SerializeField, Min(0.5f)] private float actionRange = 4f;
     [SerializeField, Min(1)] private int wateringCanCapacity = 8;
@@ -30,7 +31,8 @@ public sealed class PlayerToolController : MonoBehaviour
         items = GetComponent<PlayerItemController>();
         visuals = GetComponent<PlayerVisualController>();
         if (!farmingTarget) farmingTarget = GetComponent<FarmingTargetSelector>();
-        wateringView = FindFirstObjectByType<WateringInteractionView>();
+        if (!farmingSystem) farmingSystem = FindAnyObjectByType<PotatoFarmingSystem>();
+        wateringView = FindAnyObjectByType<WateringInteractionView>();
         if (toolPrefabs == null || toolPrefabs.Length != 5) Array.Resize(ref toolPrefabs, 5);
     }
 
@@ -43,8 +45,14 @@ public sealed class PlayerToolController : MonoBehaviour
 
     private void Update()
     {
-        UpdateWateringPrompt();
+        UpdateFarmingPrompt();
         if (!player.CanUseGameplayInput || items.IsAimingThrow || player.CursorCapturedThisFrame) return;
+        var keyboard = Keyboard.current;
+        if (items.SelectedSlot == PlayerItemSlot.Hands && keyboard != null && keyboard.eKey.wasPressedThisFrame)
+        {
+            farmingTarget?.TryPlantSelected(farmingSystem);
+            UpdateFarmingPrompt();
+        }
         var mouse = Mouse.current;
         if (mouse == null) return;
         bool primary = mouse.leftButton.wasPressedThisFrame;
@@ -89,16 +97,19 @@ public sealed class PlayerToolController : MonoBehaviour
         if (TryUseOnCrop(crop => crop.TryWater()) && !infiniteWater) water--;
     }
 
-    private void UpdateWateringPrompt()
+    private void UpdateFarmingPrompt()
     {
         if (!wateringView) return;
-        bool visible = false;
-        if (items.SelectedSlot == PlayerItemSlot.WateringCan && player.CanUseGameplayInput && farmingTarget)
+        string prompt = null;
+        if (player.CanUseGameplayInput && farmingTarget)
         {
             farmingTarget.RefreshTarget();
-            visible = farmingTarget.CanWater;
+            if (items.SelectedSlot == PlayerItemSlot.Hands && farmingTarget.CanPlant)
+                prompt = "씨감자 심기 [E]";
+            else if (items.SelectedSlot == PlayerItemSlot.WateringCan && farmingTarget.CanWater)
+                prompt = "[ LMB ]  WATER";
         }
-        wateringView.SetVisible(visible);
+        wateringView.SetPrompt(prompt);
     }
 
     private void TryRefill()
