@@ -77,3 +77,62 @@ if (farmingSystem.TryGetFarmingTile(cell, out var tile))
 
 첫 물주기 후 40·80·150·220·260·300 게임 초에 각 다음 단계로 전환한다. 매 단계마다 다시 물을 줄 필요는 없다. 일시정지와 배속은 WorldClock을 따른다.
 
+## 체력과 피해 연결
+
+각 `FarmingTile`은 기본 최대 체력 100으로 생성되며 `IDamageable`을 구현한다. 기본 최대 체력은 `PotatoFarmingSystem` Inspector의 Default Max Health에서 바꿀 수 있다. 좌표를 알고 있는 공격 시스템은 중앙 시스템을 통해 피해를 전달한다.
+
+```csharp
+bool damaged = farmingSystem.TryDamage(cell, 25f);
+// 여러 Ground를 직접 구분하는 경우:
+bool damagedWithGrid = farmingSystem.TryDamage(ground, cell, 25f);
+```
+
+타일 데이터를 이미 조회했다면 인터페이스만 사용해도 된다.
+
+```csharp
+if (farmingSystem.TryGetFarmingTile(cell, out var tile))
+{
+    IDamageable damageable = tile;
+    damageable.TryTakeDamage(25f);
+
+    Debug.Log($"HP {damageable.CurrentHealth}/{damageable.MaxHealth}");
+}
+```
+
+0 이하, NaN, 무한대 피해와 사망한 감자에 대한 추가 피해는 false를 반환한다. 체력은 0 아래로 내려가지 않는다. 체력이 0이 되면 해당 농사 데이터는 좌표 조회를 위해 남아 있지만 성장은 중단된다. 제거하거나 `BoarDugField`로 바꾸는 처리는 이벤트를 받은 외부 시스템이 결정한다.
+
+```csharp
+farmingSystem.FarmingHealthChanged += (grid, coordinate, appliedDamage, currentHealth) =>
+{
+    Debug.Log($"{coordinate}: -{appliedDamage}, HP {currentHealth}");
+};
+
+farmingSystem.FarmingTileDied += (grid, coordinate) =>
+{
+    grid.TrySetCellState(coordinate, GroundCellState.BoarDugField);
+    farmingSystem.StopFarming(grid, coordinate);
+};
+```
+
+## 수확 시스템에 체력 전달
+
+수확 담당자는 수확 조건과 타일 모델 변경을 처리한 뒤 `TryCompleteHarvest()`를 호출한다. 이 메서드는 해당 타일 감자의 현재 체력을 반환하면서 중앙 농사 데이터를 한 번에 제거한다.
+
+```csharp
+if (farmingSystem.TryCompleteHarvest(cell, out float potatoHp))
+{
+    // 수확 담당 시스템에 potatoHp 전달
+}
+```
+
+여러 Ground를 직접 구분하는 경우 `TryCompleteHarvest(ground, cell, out potatoHp)`를 사용한다. 등록되지 않은 좌표나 이미 완료된 수확에는 false를 반환하고 `potatoHp`는 0이다. 정상 완료되면 같은 좌표의 두 번째 호출은 실패하므로 체력 반환이나 아이템 지급이 중복되지 않는다.
+
+수확 가능 시점과 도구·인벤토리 조건, 타일 모델 변경 성공 여부는 수확 담당자가 먼저 검사해야 한다. `TryCompleteHarvest()`는 성장 단계와 관계없이 등록된 데이터를 완료 처리하기 때문이다. 모델 변경이 실패했다면 아직 이 메서드를 호출하지 않는다.
+
+현재 체력만 미리 확인해야 할 때는 기존 방식도 사용할 수 있다.
+
+```csharp
+if (farmingSystem.TryGetFarmingTile(cell, out var potato))
+    Debug.Log(potato.returnPotatoHp());
+```
+
