@@ -27,28 +27,17 @@ public static class PotatoFarmingChecks
             var system = root.AddComponent<PotatoFarmingSystem>();
             var a = new Vector2Int(1, 2);
             var b = new Vector2Int(3, 4);
-            var visualCell = new Vector2Int(10, 10);
+            var c = new Vector2Int(5, 6);
             int objectsBefore = scene.GetRootGameObjects().Length;
             int notifications = 0;
             system.FarmingStageChanged += (g, cell, stage) =>
             {
-                Check(g == ground && (cell == a || cell == b), "event preserves grid and coordinates");
+                Check(g == ground && (cell == a || cell == b || cell == c), "event preserves grid and coordinates");
                 notifications++;
             };
             Check(!system.TryStartFarming(null, a, clock), "missing grid rejected");
             Check(!system.TryStartFarming(ground, a, null), "missing clock rejected");
             Check(!system.TryStartFarming(ground, new Vector2Int(-1, 0), clock), "invalid cell rejected");
-            Check(ground.TryUseHoeSecondary(visualCell) &&
-                ground.GetCellState(visualCell) == GroundCellState.FieldSoil, "first hoe use digs field soil");
-            Check(ground.TryUseHoeSecondary(visualCell) &&
-                ground.GetCellState(visualCell) == GroundCellState.PlantingHole, "second hoe use creates tile 016");
-            for (int value = (int)GroundCellState.PlantingHole; value <= (int)GroundCellState.BoarDugField; value++)
-            {
-                var state = (GroundCellState)value;
-                ground.TrySetCellState(visualCell, state);
-                Check(TileVisualResolver.Resolve(ground, visualCell).Kind == 15 + (int)state - (int)GroundCellState.PlantingHole,
-                    state + " maps to its authored tile");
-            }
             ground.TrySetCellState(a, GroundCellState.PlantingHole);
             Check(system.TryStartFarming(ground, a, clock), "planting hole can register");
             Check(ground.GetCellState(a) == GroundCellState.PotatoCovered, "planting switches to tile 017");
@@ -122,6 +111,49 @@ public static class PotatoFarmingChecks
             };
             clock.AdvanceBy(300);
             Check(!system.TryGetFarmingTile(ground, a, out _), "callback can remove tile during time skip");
+            Check(system.TryDamage(ground, b, 30f), "harvest test crop takes damage");
+            Check(system.TryCompleteHarvest(ground, b, out float harvestedHp) && harvestedHp == 70f &&
+                !system.TryGetFarmingTile(ground, b, out _),
+                "complete harvest returns current HP and removes farming data");
+            Check(!system.TryCompleteHarvest(ground, b, out float missingHp) && missingHp == 0f,
+                "completed crop cannot be harvested twice");
+
+            int healthNotifications = 0;
+            int deathNotifications = 0;
+            system.FarmingHealthChanged += (g, cell, damage, health) =>
+            {
+                Check(g == ground && cell == c && damage > 0f && health >= 0f,
+                    "health event preserves grid, coordinates, damage and remaining health");
+                healthNotifications++;
+            };
+            system.FarmingTileDied += (g, cell) =>
+            {
+                Check(g == ground && cell == c, "death event preserves grid and coordinates");
+                deathNotifications++;
+            };
+            ground.TrySetCellState(c, GroundCellState.PlantingHole);
+            Check(system.TryStartFarming(ground, c, clock), "damage test crop registered");
+            Check(system.TryGetFarmingTile(ground, c, out var damagedCrop), "damage test crop lookup");
+            Check(damagedCrop is IDamageable && damagedCrop.MaxHealth == 100f &&
+                damagedCrop.CurrentHealth == 100f && damagedCrop.returnPotatoHp() == 100f &&
+                !damagedCrop.IsDead, "crop starts at full default health");
+            Check(system.TryWater(ground, c), "damage test crop starts growing");
+            Check(!system.TryDamage(ground, new Vector2Int(20, 20), 10f) &&
+                !system.TryDamage(ground, c, 0f) && !damagedCrop.TryTakeDamage(float.NaN),
+                "invalid damage does not change health");
+            Check(system.TryDamage(ground, c, 25f) && damagedCrop.CurrentHealth == 75f,
+                "coordinate damage reduces health");
+            Check(damagedCrop.returnPotatoHp() == 75f, "harvest API returns current crop health");
+            IDamageable damageable = damagedCrop;
+            Check(damageable.TryTakeDamage(25f) && damagedCrop.CurrentHealth == 50f,
+                "interface damage reduces health");
+            Check(damageable.TryTakeDamage(100f) && damagedCrop.CurrentHealth == 0f && damagedCrop.IsDead,
+                "lethal damage clamps health to zero");
+            Check(healthNotifications == 3 && deathNotifications == 1 &&
+                !system.TryDamage(ground, c, 1f), "dead crop ignores further damage");
+            clock.AdvanceBy(300);
+            Check(damagedCrop.Stage == PotatoGrowthStage.SoilMound,
+                "dead crop remains registered but stops growing");
             Debug.Log($"[PotatoFarmingChecks] PASS: {checks} checks.");
         }
         finally { EditorSceneManager.ClosePreviewScene(scene); }

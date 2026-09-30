@@ -8,6 +8,7 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
 {
     [SerializeField] private GroundGrid ground;
     [SerializeField] private WorldClock clock;
+    [SerializeField, Min(1f)] private float defaultMaxHealth = 100f;
 
     [Serializable]
     public struct StageMapping
@@ -28,7 +29,7 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
         new StageMapping { stage = PotatoGrowthStage.WitheredSixLeaves, cellState = GroundCellState.LateHarvest }
     };
 
-    public sealed class FarmingTile
+    public sealed class FarmingTile : IDamageable
     {
         public GroundGrid Ground { get; }
         public Vector2Int Cell { get; }
@@ -36,21 +37,41 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
         public double? GrowthStartedAt { get; internal set; }
         public bool IsWatered => GrowthStartedAt.HasValue;
         public PotatoGrowthStage Stage { get; internal set; }
+        public float CurrentHealth { get; private set; }
+        public float MaxHealth { get; }
+        public bool IsDead => CurrentHealth <= 0f;
         private readonly WorldClock clock;
+        private readonly Action<FarmingTile, float> healthChanged;
         /// <summary>Growth age, excluding the wait between planting and first watering.</summary>
         public double AgeSeconds => clock && GrowthStartedAt.HasValue
             ? Math.Max(0d, clock.ElapsedSeconds - GrowthStartedAt.Value) : 0d;
         public bool IsReadyToHarvest => AgeSeconds >= PotatoGrowthRules.ReadyToHarvestSeconds;
         public float Progress => (float)Math.Min(1d, AgeSeconds / PotatoGrowthRules.BaseGrowthSeconds);
 
-        internal FarmingTile(GroundGrid ground, Vector2Int cell, WorldClock clock)
+        internal FarmingTile(GroundGrid ground, Vector2Int cell, WorldClock clock,
+            float maxHealth, Action<FarmingTile, float> healthChanged)
         {
             Ground = ground;
             Cell = cell;
             this.clock = clock;
             PlantedAt = clock.ElapsedSeconds;
             Stage = PotatoGrowthStage.SoilMound;
+            MaxHealth = Mathf.Max(1f, maxHealth);
+            CurrentHealth = MaxHealth;
+            this.healthChanged = healthChanged;
         }
+
+        public bool TryTakeDamage(float amount)
+        {
+            if (float.IsNaN(amount) || float.IsInfinity(amount) || amount <= 0f || IsDead) return false;
+            float previousHealth = CurrentHealth;
+            CurrentHealth = Mathf.Max(0f, CurrentHealth - amount);
+            healthChanged?.Invoke(this, previousHealth - CurrentHealth);
+            return true;
+        }
+
+        /// <summary>Returns this tile crop's current HP for harvest-yield calculation.</summary>
+        public float returnPotatoHp() => CurrentHealth;
     }
 
     private readonly Dictionary<(GroundGrid, Vector2Int), FarmingTile> farmingTiles = new();
@@ -68,6 +89,9 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
 
     /// <summary>Includes unmapped stages, so consumers always receive exact growth information.</summary>
     public event Action<GroundGrid, Vector2Int, PotatoGrowthStage> FarmingStageChanged;
+    /// <summary>Raised with the tile, damage actually applied, and resulting health.</summary>
+    public event Action<GroundGrid, Vector2Int, float, float> FarmingHealthChanged;
+    public event Action<GroundGrid, Vector2Int> FarmingTileDied;
 
     /// <summary>Convenience entry point for interactions using the Inspector-assigned grid and clock.</summary>
     public bool TryStartFarming(Vector2Int cell) => TryStartFarming(ground, cell, clock);
@@ -87,7 +111,7 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
         if (clock && clock != worldClock) return false;
         clock = worldClock;
         Subscribe();
-        var tile = new FarmingTile(targetGround, cell, clock);
+        var tile = new FarmingTile(targetGround, cell, clock, defaultMaxHealth, OnHealthChanged);
         farmingTiles.Add(key, tile);
         ForwardStage(tile, tile.Stage);
         return true;
@@ -106,8 +130,34 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
     public bool TryWater(GroundGrid targetGround, Vector2Int cell)
     {
         if (!targetGround || !clock || !targetGround.ContainsCell(cell) ||
-            !farmingTiles.TryGetValue((targetGround, cell), out var tile) || tile.IsWatered) return false;
+            !farmingTiles.TryGetValue((targetGround, cell), out var tile) || tile.IsWatered || tile.IsDead) return false;
         tile.GrowthStartedAt = clock.ElapsedSeconds;
+        return true;
+    }
+
+    /// <summary>Applies damage to the registered crop at the default grid coordinate.</summary>
+    public bool TryDamage(Vector2Int cell, float amount) => TryDamage(ground, cell, amount);
+
+    public bool TryDamage(GroundGrid targetGround, Vector2Int cell, float amount)
+    {
+        return targetGround && targetGround.ContainsCell(cell) &&
+            farmingTiles.TryGetValue((targetGround, cell), out var tile) && tile.TryTakeDamage(amount);
+    }
+
+    /// <summary>
+    /// Returns the crop's current HP and removes its farming data in one operation.
+    /// Harvest requirements and tile visuals remain the caller's responsibility.
+    /// </summary>
+    public bool TryCompleteHarvest(Vector2Int cell, out float potatoHp)
+        => TryCompleteHarvest(ground, cell, out potatoHp);
+
+    public bool TryCompleteHarvest(GroundGrid targetGround, Vector2Int cell, out float potatoHp)
+    {
+        potatoHp = 0f;
+        var key = (targetGround, cell);
+        if (!targetGround || !targetGround.ContainsCell(cell) ||
+            !farmingTiles.TryGetValue(key, out var tile) || !farmingTiles.Remove(key)) return false;
+        potatoHp = tile.returnPotatoHp();
         return true;
     }
 
@@ -133,6 +183,12 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
             }
         }
         FarmingStageChanged?.Invoke(tile.Ground, tile.Cell, stage);
+    }
+
+    private void OnHealthChanged(FarmingTile tile, float appliedDamage)
+    {
+        FarmingHealthChanged?.Invoke(tile.Ground, tile.Cell, appliedDamage, tile.CurrentHealth);
+        if (tile.IsDead) FarmingTileDied?.Invoke(tile.Ground, tile.Cell);
     }
 
     private void OnEnable()
@@ -164,7 +220,8 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
         {
             pendingGrowth.Clear();
             foreach (var tile in farmingTiles.Values)
-                if (tile.IsWatered && tile.Stage != PotatoGrowthStage.WitheredSixLeaves) pendingGrowth.Add(tile);
+                if (tile.IsWatered && !tile.IsDead && tile.Stage != PotatoGrowthStage.WitheredSixLeaves)
+                    pendingGrowth.Add(tile);
             foreach (var tile in pendingGrowth)
             {
                 var key = (tile.Ground, tile.Cell);
