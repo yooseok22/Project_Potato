@@ -6,6 +6,7 @@ public sealed class FarmingTargetSelector : MonoBehaviour
     [SerializeField] private Camera aimCamera;
     [SerializeField] private Transform player;
     [SerializeField] private GroundGrid ground;
+    [SerializeField] private PotatoFarmingSystem farmingSystem;
     [SerializeField] private FarmingPreviewView preview;
     [SerializeField, Min(0f)] private float interactionRange = 4f;
     [SerializeField, Min(1f)] private float rayDistance = 100f;
@@ -19,6 +20,11 @@ public sealed class FarmingTargetSelector : MonoBehaviour
     public bool CanPlant { get; private set; }
     public Vector2Int SelectedCell { get; private set; }
     public GroundGrid Ground => ground;
+
+    private void Awake()
+    {
+        if (!farmingSystem) farmingSystem = FindAnyObjectByType<PotatoFarmingSystem>();
+    }
 
     public void Configure(Camera camera, Transform target, GroundGrid grid, FarmingPreviewView view, LayerMask mask)
     {
@@ -67,20 +73,34 @@ public sealed class FarmingTargetSelector : MonoBehaviour
     public bool TryWaterSelected()
     {
         RefreshTarget();
-        if (!HasTarget || !CanReachSelected() || !ground.CanWater(SelectedCell)) return false;
-        bool changed = ground.TryWater(SelectedCell);
+        if (!HasTarget || !CanWater || !CanReachSelected()) return false;
+        Vector2Int cell = SelectedCell;
+        if (!ground.TryWater(cell)) return false;
+
+        GroundCellState state = ground.GetCellState(cell);
+        int tileNumber = TileVisualResolver.Resolve(ground, cell).Kind + 1;
+        bool handedOff = farmingSystem.TryWater(cell);
+        if (handedOff)
+            Debug.Log(
+                $"[Farming Handoff] Ground='{ground.name}', Cell={cell}, State={state}, " +
+                $"Tile={tileNumber:000}, Watered=True -> PotatoFarmingSystem.TryWater(cell)",
+                farmingSystem);
+        else
+            Debug.LogWarning(
+                $"[Farming Handoff] Water applied but PotatoFarmingSystem rejected Cell={cell}. " +
+                "Check its Ground and Clock assignments.",
+                farmingSystem);
+
         RefreshTarget();
-        return changed;
+        return true;
     }
     public bool TryPlantSelected(PotatoFarmingSystem farmingSystem)
     {
         RefreshTarget();
-        if (!farmingSystem || !HasTarget || !CanReachSelected() || !ground.CanPlant(SelectedCell)) return false;
+        if (!farmingSystem || !HasTarget || !CanPlant || !CanReachSelected()) return false;
         Vector2Int cell = SelectedCell;
-        if (!ground.TrySetCellState(cell, GroundCellState.PotatoCovered)) return false;
         bool changed = farmingSystem.TryStartFarming(ground, cell);
-        if (!changed) ground.TrySetCellState(cell, GroundCellState.PlantingHole);
-        else Debug.Log(
+        if (changed) Debug.Log(
             $"[Farming Handoff] Ground='{ground.name}', Cell={cell}, State={GroundCellState.PotatoCovered}, Tile=017 -> PotatoFarmingSystem",
             farmingSystem);
         RefreshTarget();
@@ -103,15 +123,32 @@ public sealed class FarmingTargetSelector : MonoBehaviour
         Vector3 delta = center - player.position;
         delta.y = 0f;
         bool inRange = delta.sqrMagnitude <= interactionRange * interactionRange;
+        var items = player.GetComponent<PlayerItemController>();
+        var tools = player.GetComponent<PlayerToolController>();
+        bool emptyHands = items && items.SelectedSlot == PlayerItemSlot.Hands && !items.HasItem(PlayerItemSlot.Hands);
+        bool hasWater = !tools || tools.InfiniteWater || tools.Water > 0;
         CanFarm = ground.CanUseHoeSecondary(cell) && inRange;
         CanFill = ground.CanUseHoePrimary(cell) && inRange;
-        CanWater = ground.CanWater(cell) && inRange;
-        CanPlant = ground.CanPlant(cell) && inRange;
-        var items = player.GetComponent<PlayerItemController>();
-        if (items && items.SelectedSlot == PlayerItemSlot.Hoe)
-            preview.Show(center, ground.CellSize, CanFarm || CanFill);
-        else
-            preview.Hide();
+        CanWater = ground.CanWater(cell) && farmingSystem &&
+            farmingSystem.TryGetFarmingTile(ground, cell, out var farmingTile) && !farmingTile.IsWatered &&
+            inRange && hasWater;
+        CanPlant = ground.CanPlant(cell) && inRange && emptyHands;
+        if (!items) { preview.Hide(); return; }
+        switch (items.SelectedSlot)
+        {
+            case PlayerItemSlot.Hands:
+                preview.Show(center, ground.CellSize, CanPlant);
+                break;
+            case PlayerItemSlot.Hoe:
+                preview.Show(center, ground.CellSize, CanFarm || CanFill);
+                break;
+            case PlayerItemSlot.WateringCan:
+                preview.Show(center, ground.CellSize, CanWater);
+                break;
+            default:
+                preview.Hide();
+                break;
+        }
     }
     private bool CanReachSelected()
     {

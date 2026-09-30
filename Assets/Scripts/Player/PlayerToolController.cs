@@ -92,8 +92,12 @@ public sealed class PlayerToolController : MonoBehaviour
 
     private void TryWater()
     {
-        if (farmingTarget && farmingTarget.TryWaterSelected()) return;
         if (!infiniteWater && water <= 0) return;
+        if (farmingTarget && farmingTarget.TryWaterSelected())
+        {
+            if (!infiniteWater) water--;
+            return;
+        }
         if (TryUseOnCrop(crop => crop.TryWater()) && !infiniteWater) water--;
     }
 
