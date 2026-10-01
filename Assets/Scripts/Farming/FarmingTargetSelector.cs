@@ -24,6 +24,11 @@ public sealed class FarmingTargetSelector : MonoBehaviour
     private void Awake()
     {
         if (!farmingSystem) farmingSystem = FindAnyObjectByType<PotatoFarmingSystem>();
+
+        var sicklePreview = GetComponent<SickleHarvestPreviewController>();
+        if (!sicklePreview) sicklePreview = gameObject.AddComponent<SickleHarvestPreviewController>();
+        sicklePreview.Configure(aimCamera, player, ground, farmingSystem, preview,
+            interactionRange, rayDistance, obstacleMask);
     }
 
     public void Configure(Camera camera, Transform target, GroundGrid grid, FarmingPreviewView view, LayerMask mask)
