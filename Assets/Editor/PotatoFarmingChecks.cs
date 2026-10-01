@@ -139,15 +139,14 @@ public static class PotatoFarmingChecks
                 !damagedCrop.IsDead, "crop starts at full default health");
             Check(system.TryWater(ground, c), "damage test crop starts growing");
             Check(!system.TryDamage(ground, new Vector2Int(20, 20), 10f) &&
-                !system.TryDamage(ground, c, 0f) && !damagedCrop.TryTakeDamage(float.NaN),
+                !system.TryDamage(ground, c, 0f) && !system.TryDamage(ground, c, float.NaN),
                 "invalid damage does not change health");
             Check(system.TryDamage(ground, c, 25f) && damagedCrop.CurrentHealth == 75f,
                 "coordinate damage reduces health");
             Check(damagedCrop.returnPotatoHp() == 75f, "harvest API returns current crop health");
-            IDamageable damageable = damagedCrop;
-            Check(damageable.TryTakeDamage(25f) && damagedCrop.CurrentHealth == 50f,
-                "interface damage reduces health");
-            Check(damageable.TryTakeDamage(100f) && damagedCrop.CurrentHealth == 0f && damagedCrop.IsDead,
+            Check(system.TryDamage(ground, c, 25f) && damagedCrop.CurrentHealth == 50f,
+                "repeated coordinate damage reduces health");
+            Check(system.TryDamage(ground, c, 100f) && damagedCrop.CurrentHealth == 0f && damagedCrop.IsDead,
                 "lethal damage clamps health to zero");
             Check(healthNotifications == 3 && deathNotifications == 1 &&
                 !system.TryDamage(ground, c, 1f), "dead crop ignores further damage");

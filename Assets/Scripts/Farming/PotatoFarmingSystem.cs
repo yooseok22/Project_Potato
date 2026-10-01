@@ -61,7 +61,9 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
             this.healthChanged = healthChanged;
         }
 
-        public bool TryTakeDamage(float amount)
+        // Damage is applied through PotatoFarmingSystem.TryDamage so callers only need
+        // the owning ground, the affected cell, and the damage amount.
+        bool IDamageable.TryTakeDamage(float amount)
         {
             if (float.IsNaN(amount) || float.IsInfinity(amount) || amount <= 0f || IsDead) return false;
             float previousHealth = CurrentHealth;
@@ -135,13 +137,23 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
         return true;
     }
 
-    /// <summary>Applies damage to the registered crop at the default grid coordinate.</summary>
+    /// <summary>
+    /// Applies damage to the registered crop at the default grid coordinate.
+    /// External damage sources should use this coordinate-based entry point instead of retrieving FarmingTile.
+    /// </summary>
     public bool TryDamage(Vector2Int cell, float amount) => TryDamage(ground, cell, amount);
 
+    /// <summary>
+    /// Finds the crop registered to the ground cell and applies damage through its damage contract.
+    /// Returns false when the ground/cell is invalid, no crop is registered, or damage cannot be applied.
+    /// </summary>
     public bool TryDamage(GroundGrid targetGround, Vector2Int cell, float amount)
     {
-        return targetGround && targetGround.ContainsCell(cell) &&
-            farmingTiles.TryGetValue((targetGround, cell), out var tile) && tile.TryTakeDamage(amount);
+        if (!targetGround || !targetGround.ContainsCell(cell) ||
+            !farmingTiles.TryGetValue((targetGround, cell), out var tile)) return false;
+
+        IDamageable damageable = tile;
+        return damageable.TryTakeDamage(amount);
     }
 
     /// <summary>
