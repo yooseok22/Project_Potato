@@ -28,11 +28,13 @@ public static class PotatoFarmingChecks
             var a = new Vector2Int(1, 2);
             var b = new Vector2Int(3, 4);
             var c = new Vector2Int(5, 6);
+            var d = new Vector2Int(7, 8);
             int objectsBefore = scene.GetRootGameObjects().Length;
             int notifications = 0;
             system.FarmingStageChanged += (g, cell, stage) =>
             {
-                Check(g == ground && (cell == a || cell == b || cell == c), "event preserves grid and coordinates");
+                Check(g == ground && (cell == a || cell == b || cell == c || cell == d),
+                    "event preserves grid and coordinates");
                 notifications++;
             };
             Check(!system.TryStartFarming(null, a, clock), "missing grid rejected");
@@ -153,6 +155,27 @@ public static class PotatoFarmingChecks
             clock.AdvanceBy(300);
             Check(damagedCrop.Stage == PotatoGrowthStage.SoilMound,
                 "dead crop remains registered but stops growing");
+
+            ground.TrySetCellState(d, GroundCellState.PlantingHole);
+            Check(system.TryStartFarming(ground, d, clock), "pause test crop registered");
+            Check(!system.TryPauseGrowth(ground, d), "unwatered crop cannot pause growth");
+            Check(system.TryWater(ground, d), "pause test crop starts growing");
+            system.TryGetFarmingTile(ground, d, out var pausedCrop);
+            clock.AdvanceBy(10);
+            Check(system.TryPauseGrowth(ground, d) && pausedCrop.IsGrowthPaused,
+                "coordinate pauses one growing crop");
+            Check(!system.TryPauseGrowth(ground, d), "already paused crop cannot pause twice");
+            double ageBeforePauseWait = pausedCrop.AgeSeconds;
+            PotatoGrowthStage stageBeforePauseWait = pausedCrop.Stage;
+            clock.AdvanceBy(300);
+            Check(pausedCrop.AgeSeconds == ageBeforePauseWait && pausedCrop.Stage == stageBeforePauseWait,
+                "paused crop excludes elapsed world time and does not change stage");
+            Check(system.TryResumeGrowth(ground, d) && !pausedCrop.IsGrowthPaused,
+                "coordinate resumes paused crop");
+            Check(!system.TryResumeGrowth(ground, d), "running crop cannot resume twice");
+            clock.AdvanceBy(30);
+            Check(pausedCrop.AgeSeconds >= 40d && pausedCrop.Stage == PotatoGrowthStage.Sprout,
+                "resumed crop continues from its frozen growth age");
             Debug.Log($"[PotatoFarmingChecks] PASS: {checks} checks.");
         }
         finally { EditorSceneManager.ClosePreviewScene(scene); }
