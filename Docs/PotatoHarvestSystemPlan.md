@@ -61,16 +61,13 @@
 
 ### 필요한 최소 공개 API
 
-정확한 메서드명은 친구분이 결정할 수 있지만, 다음 계약을 만족하는 API가 하나 필요하다.
+친구분이 구현한 다음 공개 API를 사용한다.
 
 ```csharp
-public sealed class PotatoFarmingSystem : MonoBehaviour, IPotatoGrowthStopService
-{
-    public bool TryFreezeGrowthForHarvest(GroundGrid targetGround, Vector2Int cell);
-}
+public bool TryPauseGrowth(GroundGrid targetGround, Vector2Int cell);
 ```
 
-`IPotatoGrowthStopService` 인터페이스는 우리 쪽 `PotatoHarvestCoordinator.cs`에 정의한다. 친구분은 기존 클래스에 인터페이스와 메서드를 구현하기만 하면 된다.
+우리 쪽 `PotatoHarvestCoordinator`는 이 API를 직접 호출하며, 친구분 코드에 별도 인터페이스를 추가하지 않는다.
 
 ### API 동작 조건
 

@@ -16,14 +16,6 @@ public enum PotatoHarvestGrade : byte
     ThreeStar = 3
 }
 
-/// <summary>
-/// Implemented by the growth owner. Freezing must keep the crop registered and preserve its HP.
-/// </summary>
-public interface IPotatoGrowthStopService
-{
-    bool TryFreezeGrowthForHarvest(GroundGrid ground, Vector2Int cell);
-}
-
 public readonly struct PotatoHarvestResult
 {
     public GroundGrid Ground { get; }
@@ -116,23 +108,14 @@ public sealed class PotatoHarvestCoordinator : MonoBehaviour
     private readonly Dictionary<(GroundGrid, Vector2Int), PotatoHarvestTiming> harvestTimings = new();
     private readonly HashSet<(GroundGrid, Vector2Int)> coveredCells = new();
     private PotatoFarmingSystem farmingSystem;
-    private IPotatoGrowthStopService growthStopService;
-    private bool warnedMissingGrowthStopService;
 
     public void Configure(PotatoFarmingSystem system)
     {
-        if (farmingSystem == system)
-        {
-            ResolveGrowthStopService();
-            return;
-        }
+        if (farmingSystem == system) return;
 
         if (farmingSystem) farmingSystem.FarmingStageChanged -= OnFarmingStageChanged;
         farmingSystem = system;
-        growthStopService = null;
-        warnedMissingGrowthStopService = false;
         if (farmingSystem) farmingSystem.FarmingStageChanged += OnFarmingStageChanged;
-        ResolveGrowthStopService();
     }
 
     public void ResetCell(GroundGrid ground, Vector2Int cell)
@@ -150,23 +133,23 @@ public sealed class PotatoHarvestCoordinator : MonoBehaviour
     {
         if (!farmingSystem || !ground || !ground.CanUseSickle(cell)
             || harvestTimings.ContainsKey((ground, cell))) return false;
-        if (!farmingSystem.TryGetFarmingTile(ground, cell, out _)) return false;
-        return ResolveGrowthStopService() != null;
+        if (!farmingSystem.TryGetFarmingTile(ground, cell, out var tile)) return false;
+        return tile.Stage == PotatoGrowthStage.WitheredSixLeaves
+            || tile.IsWatered && !tile.IsGrowthPaused && !tile.IsDead;
     }
 
     public bool TryCutForHarvest(GroundGrid ground, Vector2Int cell)
     {
-        if (!CanCutForHarvest(ground, cell))
-        {
-            WarnIfGrowthStopServiceMissing();
-            return false;
-        }
+        if (!CanCutForHarvest(ground, cell)) return false;
 
         GroundCellState state = ground.GetCellState(cell);
         if (!TryGetHarvestTiming(state, out PotatoHarvestTiming timing, out bool covered)) return false;
-        if (!growthStopService.TryFreezeGrowthForHarvest(ground, cell)) return false;
+        if (!farmingSystem.TryGetFarmingTile(ground, cell, out var tile)) return false;
+        bool pausedByThisInteraction = tile.Stage != PotatoGrowthStage.WitheredSixLeaves;
+        if (pausedByThisInteraction && !farmingSystem.TryPauseGrowth(ground, cell)) return false;
         if (!ground.TryUseSickle(cell))
         {
+            if (pausedByThisInteraction) farmingSystem.TryResumeGrowth(ground, cell);
             Debug.LogError($"[Potato Harvest] Growth stopped but the sickle tile transition failed. Cell={cell}", this);
             return false;
         }
@@ -248,27 +231,6 @@ public sealed class PotatoHarvestCoordinator : MonoBehaviour
                 covered = false;
                 return false;
         }
-    }
-
-    private IPotatoGrowthStopService ResolveGrowthStopService()
-    {
-        if (growthStopService != null || !farmingSystem) return growthStopService;
-        foreach (var behaviour in farmingSystem.GetComponents<MonoBehaviour>())
-        {
-            if (behaviour is not IPotatoGrowthStopService service) continue;
-            growthStopService = service;
-            break;
-        }
-        return growthStopService;
-    }
-
-    private void WarnIfGrowthStopServiceMissing()
-    {
-        if (warnedMissingGrowthStopService || ResolveGrowthStopService() != null) return;
-        warnedMissingGrowthStopService = true;
-        Debug.LogWarning(
-            "[Potato Harvest] IPotatoGrowthStopService is not connected. " +
-            "The growth owner must freeze one crop without removing its HP data.", this);
     }
 
     private void OnFarmingStageChanged(GroundGrid targetGround, Vector2Int cell, PotatoGrowthStage stage)

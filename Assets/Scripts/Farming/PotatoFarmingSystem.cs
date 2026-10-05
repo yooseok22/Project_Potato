@@ -36,15 +36,19 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
         public double PlantedAt { get; }
         public double? GrowthStartedAt { get; internal set; }
         public bool IsWatered => GrowthStartedAt.HasValue;
+        public bool IsGrowthPaused => GrowthPausedAt.HasValue;
         public PotatoGrowthStage Stage { get; internal set; }
         public float CurrentHealth { get; private set; }
         public float MaxHealth { get; }
         public bool IsDead => CurrentHealth <= 0f;
+        private double? GrowthPausedAt { get; set; }
+        private double TotalPausedSeconds { get; set; }
         private readonly WorldClock clock;
         private readonly Action<FarmingTile, float> healthChanged;
         /// <summary>Growth age, excluding the wait between planting and first watering.</summary>
         public double AgeSeconds => clock && GrowthStartedAt.HasValue
-            ? Math.Max(0d, clock.ElapsedSeconds - GrowthStartedAt.Value) : 0d;
+            ? Math.Max(0d, (GrowthPausedAt ?? clock.ElapsedSeconds) -
+                GrowthStartedAt.Value - TotalPausedSeconds) : 0d;
         public bool IsReadyToHarvest => AgeSeconds >= PotatoGrowthRules.ReadyToHarvestSeconds;
         public float Progress => (float)Math.Min(1d, AgeSeconds / PotatoGrowthRules.BaseGrowthSeconds);
 
@@ -59,6 +63,24 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
             MaxHealth = Mathf.Max(1f, maxHealth);
             CurrentHealth = MaxHealth;
             this.healthChanged = healthChanged;
+        }
+
+        internal bool TryPauseGrowth()
+        {
+            if (!clock || !IsWatered || IsGrowthPaused || IsDead ||
+                Stage == PotatoGrowthStage.WitheredSixLeaves) return false;
+
+            GrowthPausedAt = clock.ElapsedSeconds;
+            return true;
+        }
+
+        internal bool TryResumeGrowth()
+        {
+            if (!clock || !GrowthPausedAt.HasValue) return false;
+
+            TotalPausedSeconds += Math.Max(0d, clock.ElapsedSeconds - GrowthPausedAt.Value);
+            GrowthPausedAt = null;
+            return true;
         }
 
         // Damage is applied through PotatoFarmingSystem.TryDamage so callers only need
@@ -137,6 +159,31 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
         return true;
     }
 
+    /// <summary>Pauses growth time for the crop at the default grid coordinate.</summary>
+    public bool TryPauseGrowth(Vector2Int cell) => TryPauseGrowth(ground, cell);
+
+    /// <summary>
+    /// Pauses only the crop registered at this coordinate. World time and other crops keep advancing.
+    /// Returns false when no actively growing crop exists at the coordinate or it is already paused.
+    /// </summary>
+    public bool TryPauseGrowth(GroundGrid targetGround, Vector2Int cell)
+    {
+        return targetGround && targetGround.ContainsCell(cell) &&
+            farmingTiles.TryGetValue((targetGround, cell), out var tile) && tile.TryPauseGrowth();
+    }
+
+    /// <summary>Resumes growth time for the crop at the default grid coordinate.</summary>
+    public bool TryResumeGrowth(Vector2Int cell) => TryResumeGrowth(ground, cell);
+
+    /// <summary>
+    /// Resumes a paused crop without counting the time spent paused toward its growth age.
+    /// </summary>
+    public bool TryResumeGrowth(GroundGrid targetGround, Vector2Int cell)
+    {
+        return targetGround && targetGround.ContainsCell(cell) &&
+            farmingTiles.TryGetValue((targetGround, cell), out var tile) && tile.TryResumeGrowth();
+    }
+
     /// <summary>
     /// Applies damage to the registered crop at the default grid coordinate.
     /// External damage sources should use this coordinate-based entry point instead of retrieving FarmingTile.
@@ -189,16 +236,8 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
             foreach (var mapping in stageMappings)
             {
                 if (mapping.stage != stage) continue;
-                GroundCellState nextState = mapping.cellState;
-                if (tile.Ground.IsSoilCoveredPotato(tile.Cell)
-                    && mapping.cellState >= GroundCellState.SproutSecond
-                    && mapping.cellState <= GroundCellState.LateHarvest)
-                {
-                    int growthIndex = (int)mapping.cellState - (int)GroundCellState.SproutSecond;
-                    nextState = (GroundCellState)((int)GroundCellState.SoilCoveredFirst + growthIndex);
-                }
                 // false also means "already in this state"; the registration is still valid.
-                tile.Ground.TrySetCellState(tile.Cell, nextState);
+                tile.Ground.TrySetCellState(tile.Cell, mapping.cellState);
                 break;
             }
         }
@@ -240,7 +279,8 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
         {
             pendingGrowth.Clear();
             foreach (var tile in farmingTiles.Values)
-                if (tile.IsWatered && !tile.IsDead && tile.Stage != PotatoGrowthStage.WitheredSixLeaves)
+                if (tile.IsWatered && !tile.IsGrowthPaused && !tile.IsDead &&
+                    tile.Stage != PotatoGrowthStage.WitheredSixLeaves)
                     pendingGrowth.Add(tile);
             foreach (var tile in pendingGrowth)
             {

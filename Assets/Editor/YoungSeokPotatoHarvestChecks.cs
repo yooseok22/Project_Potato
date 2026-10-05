@@ -82,19 +82,20 @@ public static class YoungSeokPotatoHarvestChecks
 
             var clock = root.AddComponent<WorldClock>();
             var farmingSystem = root.AddComponent<PotatoFarmingSystem>();
-            var growthStop = root.AddComponent<YoungSeokGrowthStopStub>();
             var coordinator = root.AddComponent<PotatoHarvestCoordinator>();
             coordinator.Configure(farmingSystem);
             var harvestCell = new Vector2Int(3, 3);
             ground.TrySetCellState(harvestCell, GroundCellState.PlantingHole);
             Check(farmingSystem.TryStartFarming(ground, harvestCell, clock),
                 "harvest integration crop registers");
+            Check(farmingSystem.TryWater(ground, harvestCell),
+                "harvest integration crop starts growing");
             ground.TrySetCellState(harvestCell, GroundCellState.EarlyHarvest);
             Check(coordinator.TryCutForHarvest(ground, harvestCell)
-                && growthStop.CallCount == 1
                 && ground.GetCellState(harvestCell) == GroundCellState.UncoveredCut,
                 "early GB harvest freezes growth and changes to GB F");
             Check(farmingSystem.TryGetFarmingTile(ground, harvestCell, out var cutCrop)
+                && cutCrop.IsGrowthPaused
                 && cutCrop.CurrentHealth == 70f,
                 "early GB harvest applies 20 timing damage and 10 uncovered damage");
             ground.TrySetCellState(harvestCell, GroundCellState.UncoveredHighYield);
@@ -108,6 +109,23 @@ public static class YoungSeokPotatoHarvestChecks
                 "E harvest returns HP, reward and G_001");
             Check(!coordinator.TryHarvest(ground, harvestCell, out _),
                 "completed crop cannot pay a second reward");
+
+            var coveredHarvestCell = new Vector2Int(4, 4);
+            ground.TrySetCellState(coveredHarvestCell, GroundCellState.PlantingHole);
+            Check(farmingSystem.TryStartFarming(ground, coveredHarvestCell, clock)
+                && farmingSystem.TryWater(ground, coveredHarvestCell),
+                "covered harvest crop registers and starts growing");
+            coordinator.MarkCovered(ground, coveredHarvestCell);
+            clock.AdvanceBy(220d);
+            Check(ground.GetCellState(coveredHarvestCell) == GroundCellState.SoilCoveredThird,
+                "covered crop reaches GN_003");
+            Check(coordinator.TryCutForHarvest(ground, coveredHarvestCell)
+                && ground.GetCellState(coveredHarvestCell) == GroundCellState.CoveredCut,
+                "sickle changes GN_003 to GN F");
+            Check(farmingSystem.TryGetFarmingTile(ground, coveredHarvestCell, out var coveredCutCrop)
+                && coveredCutCrop.IsGrowthPaused
+                && coveredCutCrop.CurrentHealth == 80f,
+                "GN_003 pauses growth and applies only early harvest damage");
 
             Debug.Log($"[YoungSeokPotatoHarvestChecks] PASS: {checks} checks.");
 
@@ -129,16 +147,5 @@ public static class YoungSeokPotatoHarvestChecks
         {
             EditorSceneManager.ClosePreviewScene(scene);
         }
-    }
-}
-
-public sealed class YoungSeokGrowthStopStub : MonoBehaviour, IPotatoGrowthStopService
-{
-    public int CallCount { get; private set; }
-
-    public bool TryFreezeGrowthForHarvest(GroundGrid ground, Vector2Int cell)
-    {
-        CallCount++;
-        return ground && ground.ContainsCell(cell);
     }
 }
