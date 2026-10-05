@@ -1,9 +1,8 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 /// <summary>
-/// Displays the existing farming tile preview while the local player holds the sickle.
-/// Harvest state is queried without completing or otherwise mutating the crop.
+/// Displays the existing farming tile preview while the local player holds the sickle or potato fork.
+/// Interaction state is queried without mutating the tile.
 /// </summary>
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(201)]
@@ -12,20 +11,20 @@ public sealed class SickleHarvestPreviewController : MonoBehaviour
     private Camera aimCamera;
     private Transform player;
     private GroundGrid ground;
-    private PotatoFarmingSystem farmingSystem;
+    private PotatoHarvestCoordinator harvestCoordinator;
     private FarmingPreviewView preview;
     private float interactionRange;
     private float rayDistance;
     private LayerMask obstacleMask;
 
     public void Configure(Camera camera, Transform target, GroundGrid grid,
-        PotatoFarmingSystem system, FarmingPreviewView previewView,
+        PotatoHarvestCoordinator coordinator, FarmingPreviewView previewView,
         float range, float maximumRayDistance, LayerMask obstacles)
     {
         aimCamera = camera;
         player = target;
         ground = grid;
-        farmingSystem = system;
+        harvestCoordinator = coordinator;
         preview = previewView;
         interactionRange = Mathf.Max(0f, range);
         rayDistance = Mathf.Max(1f, maximumRayDistance);
@@ -35,9 +34,11 @@ public sealed class SickleHarvestPreviewController : MonoBehaviour
     private void LateUpdate()
     {
         var items = player ? player.GetComponent<PlayerItemController>() : null;
-        if (!items || items.SelectedSlot != PlayerItemSlot.Sickle) return;
+        bool holdingSickle = items && items.SelectedSlot == PlayerItemSlot.Sickle;
+        bool holdingFork = items && items.SelectedSlot == PlayerItemSlot.PotatoFork;
+        if (!holdingSickle && !holdingFork) return;
 
-        if (!aimCamera || !ground || !farmingSystem || !preview)
+        if (!aimCamera || !ground || !preview)
         {
             if (preview) preview.Hide();
             return;
@@ -55,18 +56,11 @@ public sealed class SickleHarvestPreviewController : MonoBehaviour
         Vector3 delta = center - player.position;
         delta.y = 0f;
         bool inRange = delta.sqrMagnitude <= interactionRange * interactionRange;
-        bool canHarvest = farmingSystem.TryGetFarmingTile(ground, cell, out var farmingTile)
-            && IsHarvestStage(farmingTile.Stage)
-            && inRange;
+        bool canInteract = inRange && (holdingSickle
+            ? harvestCoordinator && harvestCoordinator.CanCutForHarvest(ground, cell)
+            : ground.CanUsePotatoFork(cell));
 
-        preview.Show(center, ground.CellSize, canHarvest);
-
-        var mouse = Mouse.current;
-        if (mouse != null && mouse.leftButton.wasPressedThisFrame && inRange && farmingTile != null)
-            Debug.Log(
-                $"[Sickle Inspect] Cell={cell}, HP={farmingTile.CurrentHealth:0.#}/{farmingTile.MaxHealth:0.#}, " +
-                $"State={HarvestStateName(farmingTile.Stage)}, GrowthStage={farmingTile.Stage}",
-                farmingSystem);
+        preview.Show(center, ground.CellSize, canInteract);
     }
 
     public static bool IsHarvestStage(PotatoGrowthStage stage)
@@ -102,6 +96,7 @@ public sealed class SickleHarvestPreviewController : MonoBehaviour
     private void OnDisable()
     {
         var items = player ? player.GetComponent<PlayerItemController>() : null;
-        if (items && items.SelectedSlot == PlayerItemSlot.Sickle && preview) preview.Hide();
+        if (items && (items.SelectedSlot == PlayerItemSlot.Sickle
+            || items.SelectedSlot == PlayerItemSlot.PotatoFork) && preview) preview.Hide();
     }
 }

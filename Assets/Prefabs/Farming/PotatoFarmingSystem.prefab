@@ -48,16 +48,16 @@ MonoBehaviour:
   clock: {fileID: 0}
   stageMappings:
   - stage: 0
-    cellState: 3
+    cellState: 16
   - stage: 1
-    cellState: 4
+    cellState: 17
   - stage: 2
-    cellState: 5
+    cellState: 18
   - stage: 3
-    cellState: 6
+    cellState: 19
   - stage: 4
-    cellState: 7
+    cellState: 20
   - stage: 5
-    cellState: 8
+    cellState: 21
   - stage: 6
-    cellState: 9
+    cellState: 22

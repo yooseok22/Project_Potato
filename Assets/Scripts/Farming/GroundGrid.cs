@@ -5,15 +5,41 @@ public enum GroundCellState : byte
 {
     BasicSoil = 0,
     FieldSoil = 1,
-    PlantingHole = 2,        // Tile 016
-    PotatoCovered = 3,       // Tile 017
-    SproutFirst = 4,         // Tile 018
-    SproutSecond = 5,        // Tile 019
-    SproutThird = 6,         // Tile 020
-    EarlyHarvest = 7,        // Tile 021
-    ReadyToHarvest = 8,      // Tile 022
-    LateHarvest = 9,         // Tile 023
-    BoarDugField = 10        // Tile 024
+    PlantingHole = 15,       // G_001
+    PotatoCovered = 16,      // G_002
+    SproutFirst = 17,        // G_003
+    SproutSecond = 18,       // GB_001
+    SproutThird = 19,        // GB_002
+    EarlyHarvest = 20,       // GB_003
+    ReadyToHarvest = 21,     // GB_004
+    LateHarvest = 22,        // GB_005
+    SoilCoveredFirst = 23,   // GN_001
+    SoilCoveredSecond = 24,  // GN_002
+    SoilCoveredThird = 25,   // GN_003
+    SoilCoveredFourth = 26,  // GN_004
+    SoilCoveredFifth = 27,   // GN_005
+    UncoveredCut = 28,       // GB F
+    UncoveredHighYield = 29, // GB F HY
+    UncoveredHighHidden = 30,// GB F HN
+    UncoveredMidEarly = 31,  // GB F ME
+    UncoveredMidYield = 32,  // GB F MY
+    UncoveredMidHidden = 33, // GB F MN
+    UncoveredLowEarly = 34,  // GB F LE
+    UncoveredLowYield = 35,  // GB F LY
+    CoveredCut = 36,         // GN F
+    CoveredHighYield = 37,   // GN F HY
+    CoveredHighHidden = 38,  // GN F HN
+    CoveredMidEarly = 39,    // GN F ME
+    CoveredMidYield = 40,    // GN F MY
+    CoveredMidHidden = 41,   // GN F MN
+    CoveredLowEarly = 42,    // GN F LE
+    CoveredLowYield = 43     // GN F LY
+}
+
+public enum PotatoHarvestQuality : byte
+{
+    Normal,
+    Damaged
 }
 
 public sealed class GroundGrid : MonoBehaviour
@@ -53,7 +79,7 @@ public sealed class GroundGrid : MonoBehaviour
     public bool HasPotato(Vector2Int cell)
     {
         var state = GetCellState(cell);
-        return state >= GroundCellState.PotatoCovered && state <= GroundCellState.LateHarvest;
+        return HasPotatoState(state);
     }
     public bool CanPlant(Vector2Int cell) => GetCellState(cell) == GroundCellState.PlantingHole;
     public bool IsWatered(Vector2Int cell) => ContainsCell(cell) && watered[cell.x, cell.y];
@@ -119,6 +145,146 @@ public sealed class GroundGrid : MonoBehaviour
         return TrySetCellState(cell, GroundCellState.PotatoCovered);
     }
 
+    public bool CanCoverPotato(Vector2Int cell)
+    {
+        var state = GetCellState(cell);
+        return state >= GroundCellState.SproutSecond && state <= GroundCellState.ReadyToHarvest;
+    }
+
+    public bool TryCoverPotato(Vector2Int cell)
+    {
+        if (!CanCoverPotato(cell)) return false;
+        int growthIndex = (int)GetCellState(cell) - (int)GroundCellState.SproutSecond;
+        return TrySetCellState(cell, (GroundCellState)((int)GroundCellState.SoilCoveredFirst + growthIndex));
+    }
+
+    public bool IsSoilCoveredPotato(Vector2Int cell)
+    {
+        var state = GetCellState(cell);
+        return state >= GroundCellState.SoilCoveredFirst && state <= GroundCellState.SoilCoveredFifth;
+    }
+
+    public bool CanUseSickle(Vector2Int cell)
+    {
+        var state = GetCellState(cell);
+        return state >= GroundCellState.EarlyHarvest && state <= GroundCellState.LateHarvest
+            || state >= GroundCellState.SoilCoveredThird && state <= GroundCellState.SoilCoveredFifth;
+    }
+
+    public bool TryUseSickle(Vector2Int cell)
+    {
+        if (!CanUseSickle(cell)) return false;
+        bool covered = IsSoilCoveredPotato(cell);
+        return TrySetCellState(cell, covered ? GroundCellState.CoveredCut : GroundCellState.UncoveredCut);
+    }
+
+    public bool CanUsePotatoFork(Vector2Int cell)
+    {
+        switch (GetCellState(cell))
+        {
+            case GroundCellState.UncoveredCut:
+            case GroundCellState.UncoveredHighYield:
+            case GroundCellState.UncoveredHighHidden:
+            case GroundCellState.UncoveredMidEarly:
+            case GroundCellState.UncoveredMidYield:
+            case GroundCellState.UncoveredMidHidden:
+            case GroundCellState.UncoveredLowEarly:
+            case GroundCellState.UncoveredLowYield:
+            case GroundCellState.CoveredCut:
+            case GroundCellState.CoveredHighYield:
+            case GroundCellState.CoveredHighHidden:
+            case GroundCellState.CoveredMidEarly:
+            case GroundCellState.CoveredMidYield:
+            case GroundCellState.CoveredMidHidden:
+            case GroundCellState.CoveredLowEarly:
+            case GroundCellState.CoveredLowYield:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public bool TryUsePotatoFork(Vector2Int cell)
+    {
+        if (!CanUsePotatoFork(cell)) return false;
+        GroundCellState next;
+        switch (GetCellState(cell))
+        {
+            case GroundCellState.UncoveredCut:
+                next = UnityEngine.Random.value < 0.5f
+                    ? GroundCellState.UncoveredHighYield : GroundCellState.UncoveredHighHidden;
+                break;
+            case GroundCellState.UncoveredHighYield:
+                next = GroundCellState.UncoveredMidEarly;
+                break;
+            case GroundCellState.UncoveredHighHidden:
+                next = UnityEngine.Random.value < 0.5f
+                    ? GroundCellState.UncoveredMidYield : GroundCellState.UncoveredMidHidden;
+                break;
+            case GroundCellState.UncoveredMidYield:
+                next = GroundCellState.UncoveredLowEarly;
+                break;
+            case GroundCellState.UncoveredMidHidden:
+                next = GroundCellState.UncoveredLowYield;
+                break;
+            case GroundCellState.UncoveredMidEarly:
+            case GroundCellState.UncoveredLowEarly:
+            case GroundCellState.UncoveredLowYield:
+                next = GroundCellState.PlantingHole;
+                break;
+            case GroundCellState.CoveredCut:
+                next = UnityEngine.Random.value < 0.5f
+                    ? GroundCellState.CoveredHighYield : GroundCellState.CoveredHighHidden;
+                break;
+            case GroundCellState.CoveredHighYield:
+                next = GroundCellState.CoveredMidEarly;
+                break;
+            case GroundCellState.CoveredHighHidden:
+                next = UnityEngine.Random.value < 0.5f
+                    ? GroundCellState.CoveredMidYield : GroundCellState.CoveredMidHidden;
+                break;
+            case GroundCellState.CoveredMidYield:
+                next = GroundCellState.CoveredLowEarly;
+                break;
+            case GroundCellState.CoveredMidHidden:
+                next = GroundCellState.CoveredLowYield;
+                break;
+            case GroundCellState.CoveredMidEarly:
+            case GroundCellState.CoveredLowEarly:
+            case GroundCellState.CoveredLowYield:
+                next = GroundCellState.PlantingHole;
+                break;
+            default:
+                return false;
+        }
+        return TrySetCellState(cell, next);
+    }
+
+    public bool CanHarvestPotato(Vector2Int cell)
+        => TryGetHarvestInfo(GetCellState(cell), out _, out _);
+
+    public bool TryGetHarvestInfo(Vector2Int cell, out PotatoHarvestQuality quality,
+        out string stateCode)
+    {
+        if (ContainsCell(cell)) return TryGetHarvestInfo(GetCellState(cell), out quality, out stateCode);
+        quality = default;
+        stateCode = string.Empty;
+        return false;
+    }
+
+    public bool TryHarvestPotato(Vector2Int cell, out PotatoHarvestQuality quality, out string stateCode)
+    {
+        quality = default;
+        stateCode = string.Empty;
+        if (!TryGetHarvestInfo(cell, out quality, out stateCode))
+            return false;
+
+        if (!TrySetCellState(cell, GroundCellState.PlantingHole)) return false;
+        string description = quality == PotatoHarvestQuality.Normal ? "정상적인 감자" : "손상된 감자";
+        Debug.Log($"[Potato Harvest] {description}를 수확했습니다. (상태: {stateCode}, Cell={cell})", this);
+        return true;
+    }
+
     public bool TryRemovePotato(Vector2Int cell)
     {
         if (!HasPotato(cell)) return false;
@@ -150,7 +316,44 @@ public sealed class GroundGrid : MonoBehaviour
     }
 
     private static bool HasPotatoState(GroundCellState state)
-        => state >= GroundCellState.PotatoCovered && state <= GroundCellState.LateHarvest;
+        => state >= GroundCellState.PotatoCovered && state <= GroundCellState.CoveredLowYield;
+
+    private static bool TryGetHarvestInfo(GroundCellState state, out PotatoHarvestQuality quality,
+        out string stateCode)
+    {
+        switch (state)
+        {
+            case GroundCellState.UncoveredHighYield:
+            case GroundCellState.CoveredHighYield:
+                quality = PotatoHarvestQuality.Normal;
+                stateCode = "HY";
+                return true;
+            case GroundCellState.UncoveredMidYield:
+            case GroundCellState.CoveredMidYield:
+                quality = PotatoHarvestQuality.Normal;
+                stateCode = "MY";
+                return true;
+            case GroundCellState.UncoveredLowYield:
+            case GroundCellState.CoveredLowYield:
+                quality = PotatoHarvestQuality.Normal;
+                stateCode = "LY";
+                return true;
+            case GroundCellState.UncoveredMidEarly:
+            case GroundCellState.CoveredMidEarly:
+                quality = PotatoHarvestQuality.Damaged;
+                stateCode = "ME";
+                return true;
+            case GroundCellState.UncoveredLowEarly:
+            case GroundCellState.CoveredLowEarly:
+                quality = PotatoHarvestQuality.Damaged;
+                stateCode = "LE";
+                return true;
+            default:
+                quality = default;
+                stateCode = string.Empty;
+                return false;
+        }
+    }
 
     private static bool IsPreparedFarmState(GroundCellState state)
         => state == GroundCellState.FieldSoil || state == GroundCellState.PlantingHole || HasPotatoState(state);
@@ -167,10 +370,9 @@ public sealed class GroundGrid : MonoBehaviour
 
     private static string FormatState(GroundCellState state)
     {
-        int tileNumber = state >= GroundCellState.PlantingHole
-            ? 16 + (int)state - (int)GroundCellState.PlantingHole
-            : state == GroundCellState.BasicSoil ? 1 : 0;
-        return tileNumber > 0 ? $"{state} (Tile {tileNumber:000})" : state.ToString();
+        if (state == GroundCellState.BasicSoil) return $"{state} (Ground N_001)";
+        if (state == GroundCellState.FieldSoil) return state.ToString();
+        return $"{state} (Visual {(int)state:00})";
     }
 
     public bool TryGetCell(Ray ray, float maximumDistance, out Vector2Int cell, out float distance)

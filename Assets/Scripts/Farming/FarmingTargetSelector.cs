@@ -13,21 +13,25 @@ public sealed class FarmingTargetSelector : MonoBehaviour
     [Tooltip("Only obstacle layers. Exclude the ground, tile visuals and player.")]
     [SerializeField] private LayerMask obstacleMask;
     [SerializeField] private bool enableDigging = true;
+    private PotatoHarvestCoordinator harvestCoordinator;
     public bool HasTarget { get; private set; }
     public bool CanFarm { get; private set; }
     public bool CanFill { get; private set; }
     public bool CanWater { get; private set; }
     public bool CanPlant { get; private set; }
+    public bool CanCover { get; private set; }
+    public bool CanHarvest { get; private set; }
     public Vector2Int SelectedCell { get; private set; }
     public GroundGrid Ground => ground;
 
     private void Awake()
     {
         if (!farmingSystem) farmingSystem = FindAnyObjectByType<PotatoFarmingSystem>();
+        harvestCoordinator = EnsureHarvestCoordinator(farmingSystem);
 
         var sicklePreview = GetComponent<SickleHarvestPreviewController>();
         if (!sicklePreview) sicklePreview = gameObject.AddComponent<SickleHarvestPreviewController>();
-        sicklePreview.Configure(aimCamera, player, ground, farmingSystem, preview,
+        sicklePreview.Configure(aimCamera, player, ground, harvestCoordinator, preview,
             interactionRange, rayDistance, obstacleMask);
     }
 
@@ -41,7 +45,7 @@ public sealed class FarmingTargetSelector : MonoBehaviour
         if (items && items.SelectedSlot != PlayerItemSlot.Hands &&
             items.SelectedSlot != PlayerItemSlot.Hoe && items.SelectedSlot != PlayerItemSlot.WateringCan)
         {
-            HasTarget = CanFarm = CanFill = CanWater = CanPlant = false;
+            HasTarget = CanFarm = CanFill = CanWater = CanPlant = CanCover = CanHarvest = false;
             if (preview) preview.Hide();
             return;
         }
@@ -83,12 +87,11 @@ public sealed class FarmingTargetSelector : MonoBehaviour
         if (!ground.TryWater(cell)) return false;
 
         GroundCellState state = ground.GetCellState(cell);
-        int tileNumber = TileVisualResolver.Resolve(ground, cell).Kind + 1;
         bool handedOff = farmingSystem.TryWater(cell);
         if (handedOff)
             Debug.Log(
                 $"[Farming Handoff] Ground='{ground.name}', Cell={cell}, State={state}, " +
-                $"Tile={tileNumber:000}, Watered=True -> PotatoFarmingSystem.TryWater(cell)",
+                "Watered=True -> PotatoFarmingSystem.TryWater(cell)",
                 farmingSystem);
         else
             Debug.LogWarning(
@@ -105,15 +108,60 @@ public sealed class FarmingTargetSelector : MonoBehaviour
         if (!farmingSystem || !HasTarget || !CanPlant || !CanReachSelected()) return false;
         Vector2Int cell = SelectedCell;
         bool changed = farmingSystem.TryStartFarming(ground, cell);
-        if (changed) Debug.Log(
-            $"[Farming Handoff] Ground='{ground.name}', Cell={cell}, State={GroundCellState.PotatoCovered}, Tile=017 -> PotatoFarmingSystem",
-            farmingSystem);
+        if (changed)
+        {
+            EnsureHarvestCoordinator(farmingSystem)?.ResetCell(ground, cell);
+            Debug.Log(
+                $"[Farming Handoff] Ground='{ground.name}', Cell={cell}, State={GroundCellState.PotatoCovered}, Tile=G_002 -> PotatoFarmingSystem",
+                farmingSystem);
+        }
+        RefreshTarget();
+        return changed;
+    }
+    public bool TryUseHandsSelected(PotatoFarmingSystem system)
+    {
+        RefreshTarget();
+        if (!HasTarget || !CanReachSelected()) return false;
+        Vector2Int cell = SelectedCell;
+        bool changed;
+        if (CanCover)
+        {
+            changed = ground.TryCoverPotato(cell);
+            if (changed) harvestCoordinator?.MarkCovered(ground, cell);
+        }
+        else if (CanHarvest)
+        {
+            changed = harvestCoordinator && harvestCoordinator.TryHarvest(ground, cell, out _);
+        }
+        else
+        {
+            changed = TryPlantSelected(system);
+        }
+        RefreshTarget();
+        return changed;
+    }
+    public bool TryUseSickleSelected(PotatoFarmingSystem system)
+    {
+        RefreshTarget();
+        if (!HasTarget || !CanReachSelected()) return false;
+        var coordinator = EnsureHarvestCoordinator(system);
+        if (!coordinator || !coordinator.TryCutForHarvest(ground, SelectedCell)) return false;
+        RefreshTarget();
+        return true;
+    }
+    public bool TryUsePotatoForkSelected()
+    {
+        RefreshTarget();
+        if (!HasTarget || !CanReachSelected()) return false;
+        bool changed = harvestCoordinator
+            ? harvestCoordinator.TryUsePotatoFork(ground, SelectedCell)
+            : ground.TryUsePotatoFork(SelectedCell);
         RefreshTarget();
         return changed;
     }
     public void RefreshTarget()
     {
-        HasTarget = CanFarm = CanFill = CanWater = CanPlant = false;
+        HasTarget = CanFarm = CanFill = CanWater = CanPlant = CanCover = CanHarvest = false;
         if (!aimCamera || !player || !ground || !preview) { if (preview) preview.Hide(); return; }
         Ray ray = aimCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
         if (!ground.TryGetCell(ray, rayDistance, out Vector2Int cell, out float distance)
@@ -138,11 +186,14 @@ public sealed class FarmingTargetSelector : MonoBehaviour
             farmingSystem.TryGetFarmingTile(ground, cell, out var farmingTile) && !farmingTile.IsWatered &&
             inRange && hasWater;
         CanPlant = ground.CanPlant(cell) && inRange && emptyHands;
+        CanCover = harvestCoordinator && ground.CanCoverPotato(cell) && inRange && emptyHands;
+        CanHarvest = harvestCoordinator && harvestCoordinator.CanHarvest(ground, cell)
+            && inRange && emptyHands;
         if (!items) { preview.Hide(); return; }
         switch (items.SelectedSlot)
         {
             case PlayerItemSlot.Hands:
-                preview.Show(center, ground.CellSize, CanPlant);
+                preview.Show(center, ground.CellSize, CanPlant || CanCover || CanHarvest);
                 break;
             case PlayerItemSlot.Hoe:
                 preview.Show(center, ground.CellSize, CanFarm || CanFill);
@@ -172,5 +223,21 @@ public sealed class FarmingTargetSelector : MonoBehaviour
         }
         return false;
     }
-    private void OnDisable() { HasTarget = CanFarm = CanFill = CanWater = CanPlant = false; if (preview) preview.Hide(); }
+    private void OnDisable()
+    {
+        HasTarget = CanFarm = CanFill = CanWater = CanPlant = CanCover = CanHarvest = false;
+        if (preview) preview.Hide();
+    }
+
+    private PotatoHarvestCoordinator EnsureHarvestCoordinator(PotatoFarmingSystem system)
+    {
+        if (!system) return null;
+        if (!harvestCoordinator)
+        {
+            harvestCoordinator = system.GetComponent<PotatoHarvestCoordinator>();
+            if (!harvestCoordinator) harvestCoordinator = system.gameObject.AddComponent<PotatoHarvestCoordinator>();
+        }
+        harvestCoordinator.Configure(system);
+        return harvestCoordinator;
+    }
 }

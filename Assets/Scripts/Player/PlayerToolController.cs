@@ -50,7 +50,7 @@ public sealed class PlayerToolController : MonoBehaviour
         var keyboard = Keyboard.current;
         if (items.SelectedSlot == PlayerItemSlot.Hands && keyboard != null && keyboard.eKey.wasPressedThisFrame)
         {
-            farmingTarget?.TryPlantSelected(farmingSystem);
+            farmingTarget?.TryUseHandsSelected(farmingSystem);
             UpdateFarmingPrompt();
         }
         var mouse = Mouse.current;
@@ -73,10 +73,12 @@ public sealed class PlayerToolController : MonoBehaviour
                 else if (secondary) TryRefill();
                 break;
             case PlayerItemSlot.Sickle:
-                if (primary) TryUseOnCrop(crop => crop.TryCutStem());
+                if (primary && !(farmingTarget && farmingTarget.TryUseSickleSelected(farmingSystem)))
+                    TryUseOnCrop(crop => crop.TryCutStem());
                 break;
             case PlayerItemSlot.PotatoFork:
-                if (primary) TryUseOnCrop(crop => crop.TryHarvestWithFork());
+                if (primary && !(farmingTarget && farmingTarget.TryUsePotatoForkSelected()))
+                    TryUseOnCrop(crop => crop.TryHarvestWithFork());
                 break;
         }
     }
@@ -108,7 +110,11 @@ public sealed class PlayerToolController : MonoBehaviour
         if (player.CanUseGameplayInput && farmingTarget)
         {
             farmingTarget.RefreshTarget();
-            if (items.SelectedSlot == PlayerItemSlot.Hands && farmingTarget.CanPlant)
+            if (items.SelectedSlot == PlayerItemSlot.Hands && farmingTarget.CanCover)
+                prompt = "[E]  흙덮기";
+            else if (items.SelectedSlot == PlayerItemSlot.Hands && farmingTarget.CanHarvest)
+                prompt = "[E]  감자 수확";
+            else if (items.SelectedSlot == PlayerItemSlot.Hands && farmingTarget.CanPlant)
                 prompt = "씨감자 심기 [E]";
             else if (items.SelectedSlot == PlayerItemSlot.WateringCan && farmingTarget.CanWater)
                 prompt = "[ LMB ]  WATER";
