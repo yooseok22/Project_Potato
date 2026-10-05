@@ -189,8 +189,16 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
             foreach (var mapping in stageMappings)
             {
                 if (mapping.stage != stage) continue;
+                GroundCellState nextState = mapping.cellState;
+                if (tile.Ground.IsSoilCoveredPotato(tile.Cell)
+                    && mapping.cellState >= GroundCellState.SproutSecond
+                    && mapping.cellState <= GroundCellState.LateHarvest)
+                {
+                    int growthIndex = (int)mapping.cellState - (int)GroundCellState.SproutSecond;
+                    nextState = (GroundCellState)((int)GroundCellState.SoilCoveredFirst + growthIndex);
+                }
                 // false also means "already in this state"; the registration is still valid.
-                tile.Ground.TrySetCellState(tile.Cell, mapping.cellState);
+                tile.Ground.TrySetCellState(tile.Cell, nextState);
                 break;
             }
         }

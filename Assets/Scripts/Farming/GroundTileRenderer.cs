@@ -5,9 +5,9 @@ using UnityEngine.Rendering;
 [RequireComponent(typeof(GroundGrid))]
 public sealed class GroundTileRenderer : MonoBehaviour
 {
-    private const int TileKindCount = 24;
+    private const int TileKindCount = 44;
 
-    [Header("Final complete-cell tiles (001-024)")]
+    [Header("Final complete-cell tiles (N, G, GB, GN)")]
     [SerializeField] private GameObject[] tilePrefabs = new GameObject[TileKindCount];
     [SerializeField, Min(0.01f)] private float prefabCellSize = 2f;
     [SerializeField, Range(1, 64)] private int chunkSize = 16;
@@ -68,13 +68,13 @@ public sealed class GroundTileRenderer : MonoBehaviour
         grid = GetComponent<GroundGrid>();
         if (tilePrefabs == null || tilePrefabs.Length != TileKindCount)
         {
-            Debug.LogError("Assign exactly twenty-four final tile prefabs (001-024).", this);
+            Debug.LogError("Assign exactly forty-four final tile prefabs in GroundCellState order.", this);
             return;
         }
         foreach (var prefab in tilePrefabs)
         {
             if (prefab) continue;
-            Debug.LogError("Assign all twenty-four final tile prefabs (001-024).", this);
+            Debug.LogError("Assign all forty-four final tile prefabs in GroundCellState order.", this);
             return;
         }
 

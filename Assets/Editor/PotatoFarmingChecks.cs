@@ -28,6 +28,7 @@ public static class PotatoFarmingChecks
             var a = new Vector2Int(1, 2);
             var b = new Vector2Int(3, 4);
             var c = new Vector2Int(5, 6);
+            var d = new Vector2Int(7, 8);
             int objectsBefore = scene.GetRootGameObjects().Length;
             int notifications = 0;
             system.FarmingStageChanged += (g, cell, stage) =>
@@ -40,7 +41,7 @@ public static class PotatoFarmingChecks
             Check(!system.TryStartFarming(ground, new Vector2Int(-1, 0), clock), "invalid cell rejected");
             ground.TrySetCellState(a, GroundCellState.PlantingHole);
             Check(system.TryStartFarming(ground, a, clock), "planting hole can register");
-            Check(ground.GetCellState(a) == GroundCellState.PotatoCovered, "planting switches to tile 017");
+            Check(ground.GetCellState(a) == GroundCellState.PotatoCovered, "planting switches to G_002");
             Check(!system.TryStartFarming(ground, a, clock), "duplicate does not reset age");
             Check(system.TryGetFarmingTile(ground, a, out var first), "lookup by coordinates");
             clock.AdvanceBy(600);
@@ -153,6 +154,70 @@ public static class PotatoFarmingChecks
             clock.AdvanceBy(300);
             Check(damagedCrop.Stage == PotatoGrowthStage.SoilMound,
                 "dead crop remains registered but stops growing");
+
+            ground.TrySetCellState(d, GroundCellState.SproutSecond);
+            Check(ground.CanCoverPotato(d) && ground.TryCoverPotato(d)
+                && ground.GetCellState(d) == GroundCellState.SoilCoveredFirst,
+                "GB_001 can be covered and becomes GN_001");
+            ground.TrySetCellState(d, GroundCellState.LateHarvest);
+            Check(!ground.CanCoverPotato(d) && !ground.TryCoverPotato(d),
+                "GB_005 cannot be covered");
+
+            ground.TrySetCellState(d, GroundCellState.SoilCoveredThird);
+            Check(ground.CanUseSickle(d) && ground.TryUseSickle(d)
+                && ground.GetCellState(d) == GroundCellState.CoveredCut,
+                "sickle changes GN_003 through GN_005 to GN F");
+            Check(ground.TryUsePotatoFork(d), "potato fork advances GN F");
+            GroundCellState forkState = ground.GetCellState(d);
+            Check(forkState == GroundCellState.CoveredHighYield
+                || forkState == GroundCellState.CoveredHighHidden,
+                "first fork use selects HY or HN");
+
+            if (forkState == GroundCellState.CoveredHighYield)
+            {
+                Check(ground.TryUsePotatoFork(d)
+                    && ground.GetCellState(d) == GroundCellState.CoveredMidEarly,
+                    "HY advances to ME");
+                Check(ground.TryHarvestPotato(d, out var quality, out string code)
+                    && quality == PotatoHarvestQuality.Damaged && code == "ME",
+                    "ME harvest reports a damaged potato");
+            }
+            else
+            {
+                Check(ground.TryUsePotatoFork(d), "HN advances to MY or MN");
+                GroundCellState middleState = ground.GetCellState(d);
+                Check(middleState == GroundCellState.CoveredMidYield
+                    || middleState == GroundCellState.CoveredMidHidden,
+                    "HN selects MY or MN");
+                Check(ground.TryUsePotatoFork(d), "MY or MN advances to a final harvest state");
+                GroundCellState finalState = ground.GetCellState(d);
+                bool normal = finalState == GroundCellState.CoveredLowYield;
+                Check(finalState == GroundCellState.CoveredLowEarly || normal,
+                    "MY becomes LE and MN becomes LY");
+                Check(ground.TryHarvestPotato(d, out var quality, out string code)
+                    && quality == (normal ? PotatoHarvestQuality.Normal : PotatoHarvestQuality.Damaged)
+                    && code == (normal ? "LY" : "LE"),
+                    "LE and LY report the correct potato quality");
+            }
+            Check(ground.GetCellState(d) == GroundCellState.PlantingHole,
+                "harvest returns the tile to G_001");
+
+            GroundCellState[] forkCompletionStates =
+            {
+                GroundCellState.UncoveredMidEarly,
+                GroundCellState.UncoveredLowEarly,
+                GroundCellState.UncoveredLowYield,
+                GroundCellState.CoveredMidEarly,
+                GroundCellState.CoveredLowEarly,
+                GroundCellState.CoveredLowYield
+            };
+            foreach (GroundCellState completionState in forkCompletionStates)
+            {
+                ground.TrySetCellState(d, completionState);
+                Check(ground.CanUsePotatoFork(d) && ground.TryUsePotatoFork(d)
+                    && ground.GetCellState(d) == GroundCellState.PlantingHole,
+                    $"potato fork changes {completionState} to G_001");
+            }
             Debug.Log($"[PotatoFarmingChecks] PASS: {checks} checks.");
         }
         finally { EditorSceneManager.ClosePreviewScene(scene); }

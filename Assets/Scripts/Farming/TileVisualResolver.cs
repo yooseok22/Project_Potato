@@ -1,15 +1,15 @@
 using UnityEngine;
 
-// Selects one complete authored tile per grid cell from the final 001-024 set.
+// Selects one complete authored tile per grid cell from the final N/G/GB/GN set.
 public static class TileVisualResolver
 {
     public struct Visual
     {
-        public int Kind; // 0..23 maps directly to v2-001..v2-024.
+        public int Kind; // 0..43 maps directly to GroundTileRenderer's prefab array.
         public int QuarterTurns;
         public bool MirrorX;
 
-        public int Signature => Kind | (QuarterTurns << 4) | (MirrorX ? 1 << 6 : 0);
+        public int Signature => Kind | (QuarterTurns << 6) | (MirrorX ? 1 << 8 : 0);
         public bool SameAs(Visual other) => Signature == other.Signature;
     }
 
@@ -43,7 +43,7 @@ public static class TileVisualResolver
         var state = grid.GetCellState(cell);
         if (state == GroundCellState.BasicSoil) return new Visual { Kind = 0 };
         if (state != GroundCellState.FieldSoil)
-            return new Visual { Kind = 15 + (int)state - (int)GroundCellState.PlantingHole };
+            return new Visual { Kind = (int)state };
 
         int cardinalMask = 0;
         for (int direction = 0; direction < CardinalOffsets.Length; direction++)
