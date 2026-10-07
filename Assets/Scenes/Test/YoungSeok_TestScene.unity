@@ -1242,7 +1242,6 @@ GameObject:
   - component: {fileID: 1465079613}
   - component: {fileID: 1465079612}
   - component: {fileID: 1465079614}
-  - component: {fileID: 1465079617}
   - component: {fileID: 1465079616}
   - component: {fileID: 1465079615}
   m_Layer: 0
@@ -1387,20 +1386,6 @@ MonoBehaviour:
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 0}
   m_BuildHeightMesh: 0
---- !u!114 &1465079617
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1465079610}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 919b3ab280d02d94786e3554214daa0f, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::DugPotatoCleanupInteraction
-  prompt: "\uC815\uB9AC\uD558\uAE30 [ E ]"
-  maximumDistance: 3
 --- !u!1 &1499708886
 GameObject:
   m_ObjectHideFlags: 0

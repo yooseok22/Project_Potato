@@ -54,10 +54,6 @@ public static class BoarSystemChecks
             Check(crop.IsDead && !farming.TryGetFarmingTile(ground, cell, out _) &&
                 ground.GetCellState(cell) == GroundCellState.BoarDugField,
                 "destroyed crop becomes a dug field and leaves farming data");
-            Check(ground.TryCleanBoarDugField(cell) &&
-                ground.GetCellState(cell) == GroundCellState.FieldSoil,
-                "cleanup returns dug crop to field soil");
-
             Check(boar.TryTakeDamage(25f) && boar.CurrentHealth == 75f &&
                 boar.State == BoarState.ChasingPlayer,
                 "projectile damage makes a living boar aggressive");

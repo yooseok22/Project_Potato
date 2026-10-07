@@ -292,15 +292,6 @@ public sealed class GroundGrid : MonoBehaviour
         return TrySetCellState(cell, GroundCellState.FieldSoil);
     }
 
-    public bool IsBoarDugField(Vector2Int cell)
-        => ContainsCell(cell) && GetCellState(cell) == GroundCellState.BoarDugField;
-
-    public bool TryCleanBoarDugField(Vector2Int cell)
-    {
-        if (!IsBoarDugField(cell)) return false;
-        return TrySetCellState(cell, GroundCellState.FieldSoil);
-    }
-
     public bool TryWater(Vector2Int cell)
     {
         if (!CanWater(cell)) return false;
