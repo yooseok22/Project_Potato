@@ -33,7 +33,8 @@ public enum GroundCellState : byte
     CoveredMidYield = 40,    // GN F MY
     CoveredMidHidden = 41,   // GN F MN
     CoveredLowEarly = 42,    // GN F LE
-    CoveredLowYield = 43     // GN F LY
+    CoveredLowYield = 43,    // GN F LY
+    BoarDugField = 44        // GD F
 }
 
 public enum PotatoHarvestQuality : byte
@@ -288,6 +289,15 @@ public sealed class GroundGrid : MonoBehaviour
     public bool TryRemovePotato(Vector2Int cell)
     {
         if (!HasPotato(cell)) return false;
+        return TrySetCellState(cell, GroundCellState.FieldSoil);
+    }
+
+    public bool IsBoarDugField(Vector2Int cell)
+        => ContainsCell(cell) && GetCellState(cell) == GroundCellState.BoarDugField;
+
+    public bool TryCleanBoarDugField(Vector2Int cell)
+    {
+        if (!IsBoarDugField(cell)) return false;
         return TrySetCellState(cell, GroundCellState.FieldSoil);
     }
 

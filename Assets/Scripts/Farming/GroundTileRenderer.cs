@@ -5,7 +5,7 @@ using UnityEngine.Rendering;
 [RequireComponent(typeof(GroundGrid))]
 public sealed class GroundTileRenderer : MonoBehaviour
 {
-    private const int TileKindCount = 44;
+    private const int TileKindCount = 45;
 
     [Header("Final complete-cell tiles (N, G, GB, GN)")]
     [SerializeField] private GameObject[] tilePrefabs = new GameObject[TileKindCount];
@@ -66,15 +66,22 @@ public sealed class GroundTileRenderer : MonoBehaviour
     {
         Clear();
         grid = GetComponent<GroundGrid>();
+        // Older scenes serialized the original 44 entries. Keep them usable until their
+        // dedicated GD F prefab is assigned; the field-soil mesh is a safe visual fallback.
+        if (tilePrefabs != null && tilePrefabs.Length == TileKindCount - 1)
+        {
+            System.Array.Resize(ref tilePrefabs, TileKindCount);
+            tilePrefabs[TileKindCount - 1] = tilePrefabs[(int)GroundCellState.FieldSoil];
+        }
         if (tilePrefabs == null || tilePrefabs.Length != TileKindCount)
         {
-            Debug.LogError("Assign exactly forty-four final tile prefabs in GroundCellState order.", this);
+            Debug.LogError("Assign exactly forty-five final tile prefabs in GroundCellState order.", this);
             return;
         }
         foreach (var prefab in tilePrefabs)
         {
             if (prefab) continue;
-            Debug.LogError("Assign all forty-four final tile prefabs in GroundCellState order.", this);
+            Debug.LogError("Assign all forty-five final tile prefabs in GroundCellState order.", this);
             return;
         }
 

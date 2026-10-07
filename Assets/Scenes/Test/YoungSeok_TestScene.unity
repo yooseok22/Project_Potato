@@ -301,6 +301,79 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1832b097816e3304c8079cfc19fc1a7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WorldClock
+--- !u!1001 &99341504
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 242063593473319462, guid: c86cec96fa1965042a2e35beacdfe416, type: 3}
+      propertyPath: clock
+      value:
+      objectReference: {fileID: 31866471}
+    - target: {fileID: 242063593473319462, guid: c86cec96fa1965042a2e35beacdfe416, type: 3}
+      propertyPath: farmingSystem
+      value:
+      objectReference: {fileID: 1695582409}
+    - target: {fileID: 242063593473319462, guid: c86cec96fa1965042a2e35beacdfe416, type: 3}
+      propertyPath: unlockedFields.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 242063593473319462, guid: c86cec96fa1965042a2e35beacdfe416, type: 3}
+      propertyPath: 'unlockedFields.Array.data[0]'
+      value:
+      objectReference: {fileID: 1465079612}
+    - target: {fileID: 4994679071995148289, guid: c86cec96fa1965042a2e35beacdfe416, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4994679071995148289, guid: c86cec96fa1965042a2e35beacdfe416, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4994679071995148289, guid: c86cec96fa1965042a2e35beacdfe416, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4994679071995148289, guid: c86cec96fa1965042a2e35beacdfe416, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4994679071995148289, guid: c86cec96fa1965042a2e35beacdfe416, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4994679071995148289, guid: c86cec96fa1965042a2e35beacdfe416, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4994679071995148289, guid: c86cec96fa1965042a2e35beacdfe416, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4994679071995148289, guid: c86cec96fa1965042a2e35beacdfe416, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4994679071995148289, guid: c86cec96fa1965042a2e35beacdfe416, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4994679071995148289, guid: c86cec96fa1965042a2e35beacdfe416, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8861565427171372812, guid: c86cec96fa1965042a2e35beacdfe416, type: 3}
+      propertyPath: m_Name
+      value: BoarSpawnManager
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: c86cec96fa1965042a2e35beacdfe416, type: 3}
 --- !u!1 &185424897
 GameObject:
   m_ObjectHideFlags: 0
@@ -437,7 +510,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Outline
   m_EffectColor: {r: 0, g: 0, b: 0, a: 0.8}
   m_EffectDistance: {x: 1, y: -1}
@@ -452,7 +525,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -507,7 +580,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 87e8e0e9a4f34b845ab5e7ae9fb6bb20, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::FarmingPreviewView
   fill: {fileID: 967942827}
   outline: {fileID: 1085890421}
@@ -1169,6 +1242,9 @@ GameObject:
   - component: {fileID: 1465079613}
   - component: {fileID: 1465079612}
   - component: {fileID: 1465079614}
+  - component: {fileID: 1465079617}
+  - component: {fileID: 1465079616}
+  - component: {fileID: 1465079615}
   m_Layer: 0
   m_Name: TileMap
   m_TagString: Untagged
@@ -1264,8 +1340,67 @@ MonoBehaviour:
   - {fileID: 7213930983772190596, guid: 131b73bac34ab1d4da15c6313667bab3, type: 3}
   - {fileID: 2805379658751541463, guid: 3074d5f168a5fe148b6bf9d2769d5e0c, type: 3}
   - {fileID: 8382530124345579351, guid: 52bdfe1ea4cb4c34c873ab61cfc17137, type: 3}
+  - {fileID: 2863827529072699589, guid: d6f6a56e82f92c4429a8dfd331d1b624, type: 3}
   prefabCellSize: 2
   chunkSize: 16
+--- !u!114 &1465079615
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1465079610}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2df7b7389569c484a840f4112ba631d2, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::RuntimeNavMeshBaker
+--- !u!114 &1465079616
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1465079610}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a5ac11cc976e418e8d13136b07e1f52, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshSurface
+  m_SerializedVersion: 0
+  m_AgentTypeID: 0
+  m_CollectObjects: 2
+  m_Size: {x: 10, y: 10, z: 10}
+  m_Center: {x: 0, y: 2, z: 0}
+  m_LayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_UseGeometry: 1
+  m_DefaultArea: 0
+  m_GenerateLinks: 0
+  m_IgnoreNavMeshAgent: 1
+  m_IgnoreNavMeshObstacle: 1
+  m_OverrideTileSize: 0
+  m_TileSize: 256
+  m_OverrideVoxelSize: 0
+  m_VoxelSize: 0.16666667
+  m_MinRegionArea: 2
+  m_NavMeshData: {fileID: 0}
+  m_BuildHeightMesh: 0
+--- !u!114 &1465079617
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1465079610}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 919b3ab280d02d94786e3554214daa0f, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::DugPotatoCleanupInteraction
+  prompt: "\uC815\uB9AC\uD558\uAE30 [ E ]"
+  maximumDistance: 3
 --- !u!1 &1499708886
 GameObject:
   m_ObjectHideFlags: 0
@@ -1661,3 +1796,4 @@ SceneRoots:
   - {fileID: 276137202}
   - {fileID: 951763327}
   - {fileID: 31866470}
+  - {fileID: 99341504}

@@ -14,6 +14,8 @@ GameObject:
   - component: {fileID: 1637604223160947505}
   - component: {fileID: 1211333446774862670}
   - component: {fileID: 5652742080885143965}
+  - component: {fileID: 3562330040684104790}
+  - component: {fileID: 5221084060157515198}
   m_Layer: 0
   m_Name: Boar
   m_TagString: Untagged
@@ -151,6 +153,53 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4ed3cfb07e3e22f49abaed12366f5b6d, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::BoarChargeHitbox
   forceMultiplier: 1
+--- !u!195 &3562330040684104790
+NavMeshAgent:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4757846219746213724}
+  m_Enabled: 1
+  m_AgentTypeID: 0
+  m_Radius: 0.65
+  m_Speed: 3
+  m_Acceleration: 16
+  avoidancePriority: 50
+  m_AngularSpeed: 360
+  m_StoppingDistance: 1.6
+  m_AutoTraverseOffMeshLink: 1
+  m_AutoBraking: 1
+  m_AutoRepath: 1
+  m_Height: 1.4
+  m_BaseOffset: 1.8049494
+  m_WalkableMask: 4294967295
+  m_ObstacleAvoidanceType: 4
+--- !u!114 &5221084060157515198
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4757846219746213724}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db6dbd822ef01b144a6ed11792ef2d89, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::BoarController
+  maxHealth: 100
+  cropDamage: 35
+  cropAttackInterval: 1
+  cropAttackDistance: 1.6
+  searchSpeed: 3
+  chaseSpeed: 4
+  chargeSpeed: 8
+  fleeSpeed: 6
+  fleeDistance: 25
+  fleeDuration: 5
+  chargeStartDistance: 8
+  chargeDuration: 1.2
+  chargeCooldown: 3
