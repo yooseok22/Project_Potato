@@ -6,7 +6,7 @@ public sealed class BoarChargeHitbox : MonoBehaviour
     public bool IsCharging { get; private set; }
     public void SetCharging(bool value) => IsCharging = value;
     private void OnCollisionEnter(Collision collision) => TryStun(collision.collider, collision.GetContact(0).point);
-    private void OnTriggerEnter(Collider other) => TryStun(other, other.ClosestPoint(transform.position));
+    private void OnTriggerEnter(Collider other) => TryStun(other, transform.position);
     private void TryStun(Collider other, Vector3 contactPoint)
     {
         if (!IsCharging) return;
