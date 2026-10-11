@@ -4,7 +4,7 @@ using UnityEngine;
 
 /// <summary>Receives planting requests and forwards growth to the owning grid and cell.</summary>
 [DisallowMultipleComponent]
-public sealed class PotatoFarmingSystem : MonoBehaviour
+public sealed partial class PotatoFarmingSystem : MonoBehaviour
 {
     [SerializeField] private GroundGrid ground;
     [SerializeField] private WorldClock clock;
@@ -29,7 +29,7 @@ public sealed class PotatoFarmingSystem : MonoBehaviour
         new StageMapping { stage = PotatoGrowthStage.WitheredSixLeaves, cellState = GroundCellState.LateHarvest }
     };
 
-    public sealed class FarmingTile : IDamageable
+    public sealed partial class FarmingTile : IDamageable
     {
         public GroundGrid Ground { get; }
         public Vector2Int Cell { get; }

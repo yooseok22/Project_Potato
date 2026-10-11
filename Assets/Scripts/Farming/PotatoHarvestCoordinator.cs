@@ -99,7 +99,7 @@ public static class PotatoHarvestRewardRules
 }
 
 [DisallowMultipleComponent]
-public sealed class PotatoHarvestCoordinator : MonoBehaviour
+public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
 {
     private const float EarlyHarvestDamage = 20f;
     private const float LateHarvestDamage = 40f;

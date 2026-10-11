@@ -43,7 +43,7 @@ public enum PotatoHarvestQuality : byte
     Damaged
 }
 
-public sealed class GroundGrid : MonoBehaviour
+public sealed partial class GroundGrid : MonoBehaviour
 {
     [SerializeField, Min(0.01f)] private float cellSize = 2f;
     [SerializeField, Min(1)] private int width = 50;

@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>Shared simulation seconds; calendar speed does not change crop growth speed.</summary>
 [DefaultExecutionOrder(-100)]
 [DisallowMultipleComponent]
-public sealed class WorldClock : MonoBehaviour
+public sealed partial class WorldClock : MonoBehaviour
 {
     [SerializeField, Min(1f)] private float dayLengthSeconds = 600f;
     [SerializeField, Range(0f, 24f)] private float startingHour = 6f;
