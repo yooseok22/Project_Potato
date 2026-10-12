@@ -1,0 +1,1096 @@
+fileFormatVersion: 2
+guid: b76e400e0707deb4cac603baf79e29b8
+TextureImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 0
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 0
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: Icon_Weather_Sunny
+      rect:
+        serializedVersion: 2
+        x: 47
+        y: 2527
+        width: 220
+        height: 216
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bb3b0f850ddb204428dbffec7e5b4b4a
+      internalID: 411701130
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Weather_Cloudy
+      rect:
+        serializedVersion: 2
+        x: 330
+        y: 2527
+        width: 220
+        height: 216
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4d9ad30fa0fd3264e9e11e528bf668ab
+      internalID: 1098935664
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Weather_Rainy
+      rect:
+        serializedVersion: 2
+        x: 614
+        y: 2527
+        width: 220
+        height: 216
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1c2cfff158b827143b53b308a84efe0e
+      internalID: 528617941
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Tool_Kettle
+      rect:
+        serializedVersion: 2
+        x: 937
+        y: 2389
+        width: 446
+        height: 342
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c445006e0d09acf4b9ae86e6fc7f03a5
+      internalID: 839549972
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Tool_Sickle
+      rect:
+        serializedVersion: 2
+        x: 1490
+        y: 2201
+        width: 324
+        height: 537
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b3d44ce985fbf544590ea8b29adebcea
+      internalID: 2033761727
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Tool_Scraper
+      rect:
+        serializedVersion: 2
+        x: 1888
+        y: 2211
+        width: 226
+        height: 419
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d597e77154b2c3f4187c4678efc939c4
+      internalID: 896914967
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Weather_Stormy
+      rect:
+        serializedVersion: 2
+        x: 47
+        y: 2292
+        width: 220
+        height: 215
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d77aad283bc0dad4682cf66bda1c82d6
+      internalID: -1661174215
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Weather_Boiling
+      rect:
+        serializedVersion: 2
+        x: 330
+        y: 2292
+        width: 220
+        height: 215
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 56c2e7392cd4d124cb105a5cc3fe063e
+      internalID: -2100009661
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Weather
+      rect:
+        serializedVersion: 2
+        x: 614
+        y: 2292
+        width: 220
+        height: 215
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d1033861d0ace3343ab3f78b963ad2e7
+      internalID: -411920142
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Tool_Basket
+      rect:
+        serializedVersion: 2
+        x: 896
+        y: 1846
+        width: 415
+        height: 467
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c8b176a52fcbf2647adbfa20764ffc00
+      internalID: 1914420762
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Check
+      rect:
+        serializedVersion: 2
+        x: 2164
+        y: 2267
+        width: 281
+        height: 230
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 472c847cb8a5d2d49acb41881d337b11
+      internalID: -1025296685
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Money
+      rect:
+        serializedVersion: 2
+        x: 47
+        y: 2054
+        width: 220
+        height: 213
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bd29998b0e482514895375bb106fd355
+      internalID: -916068370
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Point
+      rect:
+        serializedVersion: 2
+        x: 330
+        y: 2054
+        width: 219
+        height: 213
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: aa5bd374782c322439aeaf0d86cbe614
+      internalID: 734476322
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Null_1
+      rect:
+        serializedVersion: 2
+        x: 619
+        y: 2054
+        width: 220
+        height: 213
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3b51492e43e5caa4b9be9ec1a4499c1a
+      internalID: 579933670
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Tab
+      rect:
+        serializedVersion: 2
+        x: 1491
+        y: 1838
+        width: 445
+        height: 301
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9a6e39a3530ff514cb3591a6f3f33cf7
+      internalID: -1145989549
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Option
+      rect:
+        serializedVersion: 2
+        x: 2139
+        y: 1834
+        width: 299
+        height: 305
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6fc0a43f3534f8046bd9ab3156de8a32
+      internalID: -1640141930
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Quest_1
+      rect:
+        serializedVersion: 2
+        x: 47
+        y: 1818
+        width: 220
+        height: 212
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 60d3408a8e01748448b0832f50e33736
+      internalID: -1548462873
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Poin
+      rect:
+        serializedVersion: 2
+        x: 329
+        y: 1815
+        width: 220
+        height: 213
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cb9416f9d06077446a4a841b02d4f3dc
+      internalID: 2136172047
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Null_2
+      rect:
+        serializedVersion: 2
+        x: 619
+        y: 1815
+        width: 220
+        height: 212
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 086f5e51146de944cbbcb581ac1fc449
+      internalID: 1779354231
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Button_Tab
+      rect:
+        serializedVersion: 2
+        x: 46
+        y: 1577
+        width: 507
+        height: 215
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 57ef79778e00c2041b4666be3034ba8a
+      internalID: 1071956327
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Button_MouseUp
+      rect:
+        serializedVersion: 2
+        x: 617
+        y: 1577
+        width: 411
+        height: 219
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d2e5792eef9488c4caf6dcfd8fe35afd
+      internalID: 303569091
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Button_B
+      rect:
+        serializedVersion: 2
+        x: 1093
+        y: 1577
+        width: 220
+        height: 216
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 75069326f0340434dba575826c2d9b21
+      internalID: 1167271251
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Bar_Fill
+      rect:
+        serializedVersion: 2
+        x: 1333
+        y: 1659
+        width: 1038
+        height: 133
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: aed3cb157bf9b694bac33057c3777ccf
+      internalID: -5242098
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Button_ESC
+      rect:
+        serializedVersion: 2
+        x: 46
+        y: 1293
+        width: 507
+        height: 215
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1afbb8a66da33ad4dbc653994cbbe3f7
+      internalID: -225818402
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Button_MouseDown
+      rect:
+        serializedVersion: 2
+        x: 617
+        y: 1294
+        width: 412
+        height: 217
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ecf31eaf79be46946b47ee1b3e594b5a
+      internalID: 1616759804
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Quest_2
+      rect:
+        serializedVersion: 2
+        x: 1137
+        y: 1357
+        width: 105
+        height: 122
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b1df094486d73eb4bb3146464a583fa3
+      internalID: -1947950316
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Bar_Frame_1
+      rect:
+        serializedVersion: 2
+        x: 1333
+        y: 1470
+        width: 1038
+        height: 133
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b5fe83cf3f223ce469a1209b5cdb25af
+      internalID: -587091801
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Null_3
+      rect:
+        serializedVersion: 2
+        x: 46
+        y: 1006
+        width: 507
+        height: 215
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e54bcac487db14e4fa258e58db55ef10
+      internalID: -1072272312
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_ver2_28
+      rect:
+        serializedVersion: 2
+        x: 620
+        y: 1007
+        width: 220
+        height: 216
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8fd9d2528d6ddf94f84fc3ae77de0f4c
+      internalID: -734615948
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_ver2_29
+      rect:
+        serializedVersion: 2
+        x: 894
+        y: 1107
+        width: 156
+        height: 112
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b51dd9c3793d645429801c25085d6d57
+      internalID: 1801545138
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_ver2_30
+      rect:
+        serializedVersion: 2
+        x: 1132
+        y: 1107
+        width: 61
+        height: 112
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 64c5d15aefa3ff6428d06f1e82361a97
+      internalID: 415485090
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Icon_Bar_Frame_2
+      rect:
+        serializedVersion: 2
+        x: 1332
+        y: 676
+        width: 1118
+        height: 736
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9c9d3c906fc1fdb4eb68349586e565a4
+      internalID: 207898989
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Slot_Box_1
+      rect:
+        serializedVersion: 2
+        x: 43
+        y: 586
+        width: 413
+        height: 403
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7c9e76442d28cba4a99b470cb346265e
+      internalID: 1349587032
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Slot_Circle_1
+      rect:
+        serializedVersion: 2
+        x: 484
+        y: 581
+        width: 411
+        height: 403
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d7d375e4753815341a3e293473371b19
+      internalID: 2008413980
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Slot_Circle_2
+      rect:
+        serializedVersion: 2
+        x: 896
+        y: 573
+        width: 422
+        height: 424
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: eb9e9d6624620954e9beb74dabb4252c
+      internalID: -781187272
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: idk_1
+      rect:
+        serializedVersion: 2
+        x: 47
+        y: 273
+        width: 2214
+        height: 98
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 80fec90c12f055a4d892bb88c2adde0e
+      internalID: -1220038796
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: idk_4
+      rect:
+        serializedVersion: 2
+        x: 2323
+        y: 270
+        width: 100
+        height: 101
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6a2f0cb614ceae447b4241a2495d27d2
+      internalID: 553117904
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: idk2
+      rect:
+        serializedVersion: 2
+        x: 47
+        y: 166
+        width: 2404
+        height: 66
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e3bae7f89544a774ebedcde44c3a88a9
+      internalID: -422624339
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: idk_3
+      rect:
+        serializedVersion: 2
+        x: 41
+        y: 77
+        width: 2410
+        height: 52
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 61d31df130c54904eb872bf2c0e9af41
+      internalID: -2032853225
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Bar_Compass
+      rect:
+        serializedVersion: 2
+        x: 36
+        y: 421
+        width: 2421
+        height: 94
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ae7549ebc0f899a4f8bd6ea18496880e
+      internalID: 648743949
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 809fc8aabe42ba84782e7e7c98016615
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":64.0,"y":64.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":0,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      Bar_Compass: 648743949
+      Button_B: 1167271251
+      Button_ESC: -225818402
+      Button_MouseDown: 1616759804
+      Button_MouseUp: 303569091
+      Button_Tab: 1071956327
+      Icon_Bar_Fill: -5242098
+      Icon_Bar_Frame_1: -587091801
+      Icon_Bar_Frame_2: 207898989
+      Icon_Check: -1025296685
+      Icon_Money: -916068370
+      Icon_Null_1: 579933670
+      Icon_Null_2: 1779354231
+      Icon_Null_3: -1072272312
+      Icon_Option: -1640141930
+      Icon_Poin: 2136172047
+      Icon_Point: 734476322
+      Icon_Quest_1: -1548462873
+      Icon_Quest_2: -1947950316
+      Icon_Tab: -1145989549
+      Icon_Tool_Basket: 1914420762
+      Icon_Tool_Kettle: 839549972
+      Icon_Tool_Scraper: 896914967
+      Icon_Tool_Sickle: 2033761727
+      Icon_Weather: -411920142
+      Icon_Weather_Boiling: -2100009661
+      Icon_Weather_Cloudy: 1098935664
+      Icon_Weather_Rainy: 528617941
+      Icon_Weather_Stormy: -1661174215
+      Icon_Weather_Sunny: 411701130
+      Slot_Box_1: 1349587032
+      Slot_Circle_1: 2008413980
+      Slot_Circle_2: -781187272
+      UI_ver2_28: -734615948
+      UI_ver2_29: 1801545138
+      UI_ver2_30: 415485090
+      UI_ver2_36: 219599311
+      UI_ver2_37: 1246803389
+      UI_ver2_38: -314509518
+      UI_ver2_39: -1532746658
+      UI_ver2_40: 1088608499
+      UI_ver2_41: 382423028
+      UI_ver2_42: -754040531
+      UI_ver2_43: -1031509874
+      UI_ver2_44: 1908341610
+      UI_ver2_45: 1698024861
+      UI_ver2_46: -326136703
+      UI_ver2_47: -1262362462
+      UI_ver2_48: 844040433
+      UI_ver2_49: -1703002739
+      UI_ver2_50: 39561857
+      UI_ver2_51: -1249646695
+      UI_ver2_52: 1946968257
+      UI_ver2_53: -1846226593
+      UI_ver2_54: 1442353208
+      UI_ver2_55: 1878937504
+      UI_ver2_56: -167260158
+      UI_ver2_57: 1572710818
+      UI_ver2_58: -1907747457
+      UI_ver2_59: -1470445900
+      UI_ver2_60: 905827932
+      UI_ver2_61: 857770904
+      UI_ver2_62: 1589744671
+      UI_ver2_63: 80024174
+      UI_ver2_64: 1998228277
+      UI_ver2_65: 126285599
+      UI_ver2_66: -562827113
+      UI_ver2_67: 587887210
+      UI_ver2_68: 1603097194
+      UI_ver2_69: -1823804464
+      UI_ver2_70: -1010887511
+      UI_ver2_71: -123144526
+      UI_ver2_72: -1535240254
+      UI_ver2_73: -1363277498
+      UI_ver2_74: -143977327
+      UI_ver2_75: 1782408932
+      UI_ver2_76: 2017406092
+      UI_ver2_77: 4744671
+      UI_ver2_78: 574453528
+      h: 411701130
+      idk2: -422624339
+      idk_1: -1220038796
+      idk_3: -2032853225
+      idk_4: 553117904
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
