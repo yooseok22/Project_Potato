@@ -116,6 +116,15 @@ public sealed class PlayerItemController : MonoBehaviour
         return true;
     }
 
+    public bool TryReleaseFromHands(MonoBehaviour item)
+    {
+        int index = (int)PlayerItemSlot.Hands;
+        if (!item || slotItems == null || slotItems[index] != item) return false;
+        slotItems[index] = null;
+        ApplySlotVisibility();
+        return true;
+    }
+
     public bool HasItem(PlayerItemSlot slot) => slotItems != null && slotItems[(int)slot];
 
     public void SelectSlot(PlayerItemSlot slot)
