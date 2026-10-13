@@ -28,6 +28,7 @@ public sealed class PlayerInteractionController : MonoBehaviour
     private IPlayerInteractable current;
     private IInteractionHighlight highlighter;
     private float holdTime;
+    private RaycastHit[] targetHits = new RaycastHit[16];
 
     public string CurrentPrompt => current?.Prompt ?? string.Empty;
     public float HoldProgress => current != null && current.RequiresHold
@@ -75,9 +76,7 @@ public sealed class PlayerInteractionController : MonoBehaviour
     {
         IPlayerInteractable found = null;
         IInteractionHighlight foundHighlight = null;
-        if (aimCamera && player.HasGameplayFocus &&
-            Physics.Raycast(aimCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f)), out var hit,
-                range, interactionMask, QueryTriggerInteraction.Collide))
+        if (aimCamera && player.HasGameplayFocus && TryRaycastTarget(out var hit))
         {
             foreach (var behaviour in hit.collider.GetComponentsInParent<MonoBehaviour>(true))
             {
@@ -92,6 +91,34 @@ public sealed class PlayerInteractionController : MonoBehaviour
         highlighter = foundHighlight;
         highlighter?.SetHighlighted(current != null);
         TargetChanged?.Invoke();
+    }
+
+    private bool TryRaycastTarget(out RaycastHit closest)
+    {
+        var ray = aimCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f));
+        int count;
+        // The near-plane ray can enter our CharacterController when looking down.
+        // Collect hits before excluding self so external targets remain reachable.
+        while (true)
+        {
+            count = Physics.RaycastNonAlloc(ray, targetHits, range, interactionMask,
+                QueryTriggerInteraction.Collide);
+            if (count < targetHits.Length) break;
+            Array.Resize(ref targetHits, targetHits.Length * 2);
+        }
+
+        closest = default;
+        float distance = float.PositiveInfinity;
+        bool found = false;
+        for (int index = 0; index < count; index++)
+        {
+            var hit = targetHits[index];
+            if (!hit.collider || hit.collider.transform.IsChildOf(transform) || hit.distance >= distance) continue;
+            closest = hit;
+            distance = hit.distance;
+            found = true;
+        }
+        return found;
     }
 
     private void BeginHold()

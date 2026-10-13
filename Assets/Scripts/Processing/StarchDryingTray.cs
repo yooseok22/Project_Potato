@@ -14,7 +14,7 @@ public sealed class StarchDryingTray : MonoBehaviour, IPlayerInteractable
         StarchTrayState.InstalledEmpty => "건조 틀 비어 있음",
         StarchTrayState.InstalledWet => "[E] 건조 틀 꺼내기",
         StarchTrayState.Drying => $"건조 중 {processor.DryingSecondsRemaining}초",
-        StarchTrayState.Dried => "[E] 전분 팩 5개 수거 (테스트)",
+        StarchTrayState.Dried => "[E] 전분 수거 (테스트)",
         _ => string.Empty
     };
 
@@ -30,7 +30,8 @@ public sealed class StarchDryingTray : MonoBehaviour, IPlayerInteractable
         if (!carryItem) carryItem = GetComponent<ProcessingCarryItem>();
     }
 
-    public bool CanInteract(PlayerInteractionController player) => enabled && gameObject.activeInHierarchy;
+    public bool CanInteract(PlayerInteractionController player) => enabled && gameObject.activeInHierarchy && processor &&
+        (processor.TrayState == StarchTrayState.InstalledWet || processor.TrayState == StarchTrayState.Dried);
 
     public void Interact(PlayerInteractionController player)
     {

@@ -16,13 +16,28 @@ public sealed class ProcessingCarryItem : MonoBehaviour, IPlayerHeldItem
     private bool[] colliderStates;
     private PlayerItemController currentItems;
     private bool homeCaptured;
+    private ProcessingCarryRig carryRig;
+    private Transform handSocket;
+    private Transform handAnchor;
+    private Transform viewTransform;
 
     public float Mass => mass;
     public bool CanDrop => false;
     public bool CanThrow => false;
     public bool IsCarried => currentItems;
 
-    private void Awake() => CaptureHome();
+    private void Awake()
+    {
+        carryRig = GetComponent<ProcessingCarryRig>();
+        CaptureHome();
+    }
+
+    public void ConfigureHeldPose(Vector3 position, Vector3 eulerAngles, Vector3 scale)
+    {
+        heldLocalPosition = position;
+        heldLocalEulerAngles = eulerAngles;
+        heldLocalScale = scale;
+    }
 
     private void CaptureHome()
     {
@@ -47,11 +62,23 @@ public sealed class ProcessingCarryItem : MonoBehaviour, IPlayerHeldItem
         var items = player.GetComponent<PlayerItemController>();
         if (!items || !items.HeldItemAnchor || !items.TryHoldInHands(this)) return false;
         currentItems = items;
+        if (!carryRig) carryRig = GetComponent<ProcessingCarryRig>();
+        carryRig?.Detach();
         SetColliders(false);
-        transform.SetParent(items.HeldItemAnchor, false);
-        transform.localPosition = heldLocalPosition;
-        transform.localRotation = Quaternion.Euler(heldLocalEulerAngles);
-        transform.localScale = heldLocalScale;
+        handAnchor = items.HeldItemAnchor;
+        var controller = player.GetComponent<FirstPersonPlayerController>();
+        viewTransform = controller && controller.ViewCamera ? controller.ViewCamera.transform : player.transform;
+        // The current hand anchor lives below a nonuniformly scaled capsule. A camera socket
+        // avoids stretching or shrinking skinned props through that hand's transform scale.
+        handSocket = new GameObject(name + "_HandSocket").transform;
+        handSocket.SetParent(viewTransform, false);
+        UpdateHandSocket();
+        transform.SetParent(handSocket, false);
+        transform.localPosition = Vector3.zero;
+        transform.localRotation = Quaternion.identity;
+        Vector3 socketScale = handSocket.lossyScale;
+        transform.localScale = new Vector3(heldLocalScale.x / socketScale.x,
+            heldLocalScale.y / socketScale.y, heldLocalScale.z / socketScale.z);
         return true;
     }
 
@@ -60,16 +87,8 @@ public sealed class ProcessingCarryItem : MonoBehaviour, IPlayerHeldItem
         if (!IsCarriedBy(player) || !currentItems.TryReleaseFromHands(this)) return false;
         currentItems = null;
         RestoreHomeTransform();
-        RestoreColliders();
-        return true;
-    }
-
-    public bool TryPlace(PlayerInteractionController player, Vector3 position, Quaternion rotation)
-    {
-        if (!IsCarriedBy(player) || !currentItems.TryReleaseFromHands(this)) return false;
-        currentItems = null;
-        transform.SetParent(null, true);
-        transform.SetPositionAndRotation(position, rotation);
+        ClearHandSocket();
+        carryRig?.Restore();
         RestoreColliders();
         return true;
     }
@@ -80,11 +99,44 @@ public sealed class ProcessingCarryItem : MonoBehaviour, IPlayerHeldItem
         if (currentItems) currentItems.TryReleaseFromHands(this);
         currentItems = null;
         RestoreHomeTransform();
+        ClearHandSocket();
+        carryRig?.Restore();
         RestoreColliders();
     }
 
     public bool TryDrop(PlayerItemActionContext context) => false;
+
+    public bool TryPlaceAt(PlayerInteractionController player, Transform anchor)
+    {
+        if (!anchor || !IsCarriedBy(player) || !currentItems.TryReleaseFromHands(this)) return false;
+        currentItems = null;
+        transform.SetParent(anchor, false);
+        transform.localPosition = Vector3.zero;
+        transform.localRotation = Quaternion.identity;
+        transform.localScale = homeLocalScale;
+        ClearHandSocket();
+        gameObject.SetActive(true);
+        RestoreColliders();
+        return true;
+    }
     public bool TryThrow(PlayerItemActionContext context) => false;
+
+    private void LateUpdate()
+    {
+        if (currentItems && handSocket) UpdateHandSocket();
+    }
+
+    private void UpdateHandSocket()
+    {
+        handSocket.SetPositionAndRotation(handAnchor.position + viewTransform.rotation * heldLocalPosition,
+            viewTransform.rotation * Quaternion.Euler(heldLocalEulerAngles));
+    }
+
+    private void ClearHandSocket()
+    {
+        if (handSocket) Destroy(handSocket.gameObject);
+        handSocket = handAnchor = viewTransform = null;
+    }
 
     private void RestoreHomeTransform()
     {
