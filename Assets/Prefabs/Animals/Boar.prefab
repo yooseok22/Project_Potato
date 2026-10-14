@@ -192,8 +192,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BoarController
   maxHealth: 100
   cropDamage: 35
-  cropAttackInterval: 1
+  cropAttackInterval: 3
   cropAttackDistance: 1.6
+  maximumDugTiles: 50
+  windingSearchRadius: 6
   searchSpeed: 3
   chaseSpeed: 4
   chargeSpeed: 8

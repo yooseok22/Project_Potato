@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -19,8 +20,11 @@ public sealed class BoarController : MonoBehaviour, IDamageable
     [SerializeField, Min(1f)] private float maxHealth = 100f;
     [Header("Crop Attack")]
     [SerializeField, Min(0f)] private float cropDamage = 35f;
-    [SerializeField, Min(0.1f)] private float cropAttackInterval = 1f;
+    [SerializeField, Min(0.1f)] private float cropAttackInterval = 3f;
     [SerializeField, Min(0.1f)] private float cropAttackDistance = 1.6f;
+    [SerializeField, Min(1)] private int maximumDugTiles = 50;
+    [Tooltip("After the first crop, prefer another crop within this many cells to create a winding path.")]
+    [SerializeField, Min(1)] private int windingSearchRadius = 6;
     [Header("Movement")]
     [SerializeField, Min(0.1f)] private float searchSpeed = 3f;
     [SerializeField, Min(0.1f)] private float chaseSpeed = 4f;
@@ -35,6 +39,7 @@ public sealed class BoarController : MonoBehaviour, IDamageable
 
     private PotatoFarmingSystem farmingSystem;
     private GroundGrid[] allowedGrounds = Array.Empty<GroundGrid>();
+    private GroundGrid huntingGround;
     private NavMeshAgent agent;
     private BoarChargeHitbox chargeHitbox;
     private PotatoFarmingSystem.FarmingTile cropTarget;
@@ -45,11 +50,15 @@ public sealed class BoarController : MonoBehaviour, IDamageable
     private float stateEndsAt;
     private bool hasDestination;
     private Quaternion modelRotationOffset;
+    private Vector2 previousCropDirection;
+    private int dugTileCount;
 
     public float CurrentHealth { get; private set; }
     public float MaxHealth => maxHealth;
     public bool IsDead => CurrentHealth <= 0f;
     public BoarState State { get; private set; }
+    public int DugTileCount => dugTileCount;
+    public int MaximumDugTiles => Mathf.Max(1, maximumDugTiles);
     public event Action<BoarController> Despawned;
 
     private void Awake()
@@ -65,12 +74,18 @@ public sealed class BoarController : MonoBehaviour, IDamageable
     }
 
     public void Initialize(PotatoFarmingSystem system, GroundGrid[] grounds)
+        => Initialize(system, grounds, null);
+
+    public void Initialize(PotatoFarmingSystem system, GroundGrid[] grounds, GroundGrid spawnGround)
     {
         farmingSystem = system;
         allowedGrounds = grounds ?? Array.Empty<GroundGrid>();
+        huntingGround = spawnGround;
+        dugTileCount = 0;
+        previousCropDirection = Vector2.zero;
         CurrentHealth = Mathf.Max(1f, maxHealth);
         State = BoarState.SeekingCrop;
-        FindNearestCrop();
+        if (!FindNearestCrop()) BeginSatisfiedFlee();
     }
 
     public bool TryTakeDamage(float amount)
@@ -102,7 +117,11 @@ public sealed class BoarController : MonoBehaviour, IDamageable
     {
         if (!IsValidCrop(cropTarget))
         {
-            if (!FindNearestCrop()) return;
+            if (!FindNextCrop())
+            {
+                BeginSatisfiedFlee();
+                return;
+            }
         }
         Vector3 destination = cropTarget.Ground.CellCenter(cropTarget.Cell);
         SetDestination(destination, searchSpeed, cropAttackDistance);
@@ -119,7 +138,7 @@ public sealed class BoarController : MonoBehaviour, IDamageable
         if (!IsValidCrop(cropTarget))
         {
             State = BoarState.SeekingCrop;
-            FindNearestCrop();
+            if (!FindNextCrop()) BeginSatisfiedFlee();
             return;
         }
         Vector3 targetPosition = cropTarget.Ground.CellCenter(cropTarget.Cell);
@@ -137,9 +156,15 @@ public sealed class BoarController : MonoBehaviour, IDamageable
         if (!cropTarget.IsDead) return;
         farmingSystem.StopFarming(targetGround, targetCell);
         targetGround.TrySetCellState(targetCell, GroundCellState.BoarDugField);
+        dugTileCount++;
         cropTarget = null;
+        if (dugTileCount >= MaximumDugTiles)
+        {
+            BeginSatisfiedFlee();
+            return;
+        }
         State = BoarState.SeekingCrop;
-        FindNearestCrop();
+        if (!FindWindingCrop(targetGround, targetCell)) BeginSatisfiedFlee();
     }
 
     private void BeginPlayerAggro()
@@ -192,6 +217,38 @@ public sealed class BoarController : MonoBehaviour, IDamageable
         SetDestination(transform.position + away.normalized * fleeDistance, fleeSpeed, 0f);
     }
 
+    private void BeginSatisfiedFlee()
+    {
+        chargeHitbox.SetCharging(false);
+        cropTarget = null;
+        State = BoarState.Fleeing;
+        GroundGrid ground = huntingGround;
+        if (!ground)
+        {
+            BeginFlee();
+            return;
+        }
+
+        Vector2Int current = ground.WorldToCell(transform.position);
+        current.x = Mathf.Clamp(current.x, 0, ground.Width - 1);
+        current.y = Mathf.Clamp(current.y, 0, ground.Depth - 1);
+        int west = current.x;
+        int east = ground.Width - 1 - current.x;
+        int south = current.y;
+        int north = ground.Depth - 1 - current.y;
+        int nearest = Mathf.Min(west, east, south, north);
+        Vector2Int edge = current;
+        if (nearest == west) edge.x = 0;
+        else if (nearest == east) edge.x = ground.Width - 1;
+        else if (nearest == south) edge.y = 0;
+        else edge.y = ground.Depth - 1;
+
+        Vector3 destination = ground.CellCenter(edge);
+        float travelTime = HorizontalDistance(transform.position, destination) / Mathf.Max(0.1f, fleeSpeed);
+        stateEndsAt = Time.time + Mathf.Max(fleeDuration, travelTime + 3f);
+        SetDestination(destination, fleeSpeed, 0.25f);
+    }
+
     private void UpdateFleeing()
     {
         if (Time.time < stateEndsAt && !ReachedDestination()) return;
@@ -205,13 +262,64 @@ public sealed class BoarController : MonoBehaviour, IDamageable
         float bestDistance = float.PositiveInfinity;
         foreach (var crop in farmingSystem.GetFarmingTiles())
         {
-            if (!IsValidCrop(crop) || !IsAllowedGround(crop.Ground)) continue;
+            if (!IsValidCrop(crop) || !IsAllowedGround(crop.Ground)
+                || huntingGround && crop.Ground != huntingGround) continue;
             float distance = (crop.Ground.CellCenter(crop.Cell) - transform.position).sqrMagnitude;
             if (distance >= bestDistance) continue;
             bestDistance = distance;
             cropTarget = crop;
         }
+        if (cropTarget != null)
+        {
+            huntingGround = cropTarget.Ground;
+            Vector3 direction = cropTarget.Ground.CellCenter(cropTarget.Cell) - transform.position;
+            previousCropDirection = new Vector2(direction.x, direction.z).normalized;
+        }
         return cropTarget != null;
+    }
+
+    private bool FindNextCrop()
+    {
+        if (dugTileCount == 0) return FindNearestCrop();
+        if (!huntingGround) return false;
+        return FindWindingCrop(huntingGround, huntingGround.WorldToCell(transform.position));
+    }
+
+    private bool FindWindingCrop(GroundGrid ground, Vector2Int fromCell)
+    {
+        cropTarget = null;
+        var localCandidates = new List<PotatoFarmingSystem.FarmingTile>();
+        var allCandidates = new List<PotatoFarmingSystem.FarmingTile>();
+        foreach (var crop in farmingSystem.GetFarmingTiles())
+        {
+            if (!IsValidCrop(crop) || crop.Ground != ground) continue;
+            allCandidates.Add(crop);
+            Vector2Int delta = crop.Cell - fromCell;
+            int cellDistance = Mathf.Max(Mathf.Abs(delta.x), Mathf.Abs(delta.y));
+            if (cellDistance <= Mathf.Max(1, windingSearchRadius)) localCandidates.Add(crop);
+        }
+
+        var candidates = localCandidates.Count > 0 ? localCandidates : allCandidates;
+        float bestScore = float.PositiveInfinity;
+        foreach (var crop in candidates)
+        {
+            Vector2 delta = crop.Cell - fromCell;
+            float distance = Mathf.Max(Mathf.Abs(delta.x), Mathf.Abs(delta.y));
+            Vector2 direction = delta.sqrMagnitude > 0f ? delta.normalized : Vector2.zero;
+            // Penalize both straight continuation and direct backtracking. Sideways and diagonal
+            // turns plus random jitter produce an irregular, winding top-down footprint.
+            float straightness = previousCropDirection.sqrMagnitude > 0f
+                ? Mathf.Abs(Vector2.Dot(previousCropDirection, direction)) : 0f;
+            float score = distance + straightness * 2.5f + UnityEngine.Random.Range(0f, 2.75f);
+            if (score >= bestScore) continue;
+            bestScore = score;
+            cropTarget = crop;
+        }
+
+        if (cropTarget == null) return false;
+        Vector2 selectedDirection = cropTarget.Cell - fromCell;
+        if (selectedDirection.sqrMagnitude > 0f) previousCropDirection = selectedDirection.normalized;
+        return true;
     }
 
     private bool IsValidCrop(PotatoFarmingSystem.FarmingTile crop)
@@ -230,7 +338,7 @@ public sealed class BoarController : MonoBehaviour, IDamageable
     {
         Transform nearest = null;
         float bestDistance = float.PositiveInfinity;
-        foreach (var player in FindObjectsByType<PlayerStunController>(FindObjectsSortMode.None))
+        foreach (var player in FindObjectsByType<PlayerStunController>())
         {
             float distance = (player.transform.position - transform.position).sqrMagnitude;
             if (distance >= bestDistance) continue;

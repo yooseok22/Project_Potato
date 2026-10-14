@@ -26,7 +26,7 @@ public sealed class BoarSpawnManager : MonoBehaviour
         if (!clock) clock = FindAnyObjectByType<WorldClock>();
         if (!farmingSystem) farmingSystem = FindAnyObjectByType<PotatoFarmingSystem>();
         if (unlockedFields == null || unlockedFields.Length == 0)
-            unlockedFields = FindObjectsByType<GroundGrid>(FindObjectsSortMode.None);
+            unlockedFields = FindObjectsByType<GroundGrid>();
         nextAppearanceAt = clock ? clock.ElapsedSeconds + appearanceIntervalSeconds : appearanceIntervalSeconds;
     }
 
@@ -62,8 +62,8 @@ public sealed class BoarSpawnManager : MonoBehaviour
         if (activeBoar || !boarPrefab || !farmingSystem) return false;
         GroundGrid field = ChooseFieldWithCrop();
         if (!field || !TryChooseSpawnPosition(field, out var position)) return false;
-        activeBoar = Instantiate(boarPrefab, position, Quaternion.identity);
-        activeBoar.Initialize(farmingSystem, unlockedFields);
+        activeBoar = Instantiate(boarPrefab, position, boarPrefab.transform.rotation);
+        activeBoar.Initialize(farmingSystem, unlockedFields, field);
         activeBoar.Despawned += OnBoarDespawned;
         Debug.Log($"[Boar] Appeared at Ground='{field.name}', Position={position}.", activeBoar);
         return true;
@@ -87,22 +87,22 @@ public sealed class BoarSpawnManager : MonoBehaviour
 
     private bool TryChooseSpawnPosition(GroundGrid field, out Vector3 position)
     {
+        Vector3 fallback = field.CellCenter(Vector2Int.zero);
         for (int attempt = 0; attempt < 16; attempt++)
         {
             var cell = new Vector2Int(UnityEngine.Random.Range(0, field.Width),
                 UnityEngine.Random.Range(0, field.Depth));
             Vector3 candidate = field.CellCenter(cell);
             candidate.y = field.Origin.y;
+            fallback = candidate;
             if (NavMesh.SamplePosition(candidate, out var hit, navMeshSampleDistance, NavMesh.AllAreas))
             {
                 position = hit.position;
                 return true;
             }
-            position = candidate;
-            return true;
         }
-        position = default;
-        return false;
+        position = fallback;
+        return true;
     }
 
     private void OnBoarDespawned(BoarController boar)
