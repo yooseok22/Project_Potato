@@ -80,7 +80,9 @@ public sealed class FarmingSaveSection : ISaveSection
                     && (!crop.watered || crop.totalPausedSeconds <= (crop.paused ? crop.growthPausedAt : now) - crop.growthStartedAt)
                     && Enum.IsDefined(typeof(PotatoGrowthStage), crop.stage)
                     && SaveValidation.Finite(crop.maxHealth) && crop.maxHealth >= 1
-                    && SaveValidation.NonNegative(crop.health) && crop.health <= crop.maxHealth, "Invalid crop state.");
+                    && SaveValidation.NonNegative(crop.health) && crop.health <= crop.maxHealth
+                    && SaveValidation.NonNegative(crop.bugExpiresAt)
+                    && (!crop.hasBugs || crop.bugSpawnChecked && crop.watered), "Invalid crop state.");
             }
         }
         foreach (var harvest in data.harvests)

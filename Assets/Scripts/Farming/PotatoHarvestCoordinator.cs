@@ -25,12 +25,14 @@ public readonly struct PotatoHarvestResult
     public string StateCode { get; }
     public float Health { get; }
     public float MaxHealth { get; }
+    public PotatoStatus Status { get; }
+    public bool HasAbnormalStatus => Status != PotatoStatus.None;
     public PotatoHarvestGrade[] Grades { get; }
     public int Count => Grades?.Length ?? 0;
 
     public PotatoHarvestResult(GroundGrid ground, Vector2Int cell, PotatoHarvestTiming timing,
         PotatoHarvestQuality quality, string stateCode, float health, float maxHealth,
-        PotatoHarvestGrade[] grades)
+        PotatoHarvestGrade[] grades, PotatoStatus status = PotatoStatus.None)
     {
         Ground = ground;
         Cell = cell;
@@ -39,6 +41,7 @@ public readonly struct PotatoHarvestResult
         StateCode = stateCode;
         Health = health;
         MaxHealth = maxHealth;
+        Status = status;
         Grades = grades ?? Array.Empty<PotatoHarvestGrade>();
     }
 }
@@ -103,7 +106,6 @@ public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
 {
     private const float EarlyHarvestDamage = 20f;
     private const float LateHarvestDamage = 40f;
-    private const float UncoveredDamage = 10f;
 
     private readonly Dictionary<(GroundGrid, Vector2Int), PotatoHarvestTiming> harvestTimings = new();
     private readonly HashSet<(GroundGrid, Vector2Int)> coveredCells = new();
@@ -127,6 +129,8 @@ public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
     public void MarkCovered(GroundGrid ground, Vector2Int cell)
     {
         if (ground && ground.ContainsCell(cell)) coveredCells.Add((ground, cell));
+        if (farmingSystem && farmingSystem.TryGetFarmingTile(ground, cell, out var tile))
+            tile.IsSoilCovered = true;
     }
 
     public bool CanCutForHarvest(GroundGrid ground, Vector2Int cell)
@@ -159,7 +163,6 @@ public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
 
         float damage = timing == PotatoHarvestTiming.Early ? EarlyHarvestDamage
             : timing == PotatoHarvestTiming.Late ? LateHarvestDamage : 0f;
-        if (!covered) damage += UncoveredDamage;
         if (damage > 0f && !farmingSystem.TryDamage(ground, cell, damage))
             Debug.LogWarning($"[Potato Harvest] Failed to apply {damage:0.#} harvest damage. Cell={cell}", this);
         return true;
@@ -202,7 +205,8 @@ public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
 
         var grades = PotatoHarvestRewardRules.Roll(health);
         result = new PotatoHarvestResult(ground, cell, timing, quality, stateCode,
-            health, maximumHealth, grades);
+            health, maximumHealth, grades, tile.Status |
+                (quality == PotatoHarvestQuality.Damaged ? PotatoStatus.Injured : PotatoStatus.None));
         ResetCell(ground, cell);
         LogResult(result);
         return true;

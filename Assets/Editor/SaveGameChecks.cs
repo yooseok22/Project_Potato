@@ -178,6 +178,7 @@ public static class SaveGameChecks
             Check(grid.IsSoilCoveredPotato(growing), "covered crop continues with covered visual");
             Check(harvest.TryUsePotatoFork(grid, cut), "fork continues from saved cut state");
             if (!harvest.CanHarvest(grid, cut)) Check(harvest.TryUsePotatoFork(grid, cut), "fork continues through hidden branch");
+            if (!harvest.CanHarvest(grid, cut)) Check(harvest.TryUsePotatoFork(grid, cut), "fork reaches lowest hidden branch");
             Check(harvest.CanHarvest(grid, cut) && harvest.TryHarvest(grid, cut, out _), "saved harvest can finish");
             UnityEngine.Object.DestroyImmediate(root);
             root = new GameObject("SaveChecks");

@@ -44,6 +44,7 @@ public sealed class BoarController : MonoBehaviour, IDamageable
     private BoarChargeHitbox chargeHitbox;
     private PotatoFarmingSystem.FarmingTile cropTarget;
     private Transform playerTarget;
+    private DogHelperController dogTarget;
     private Vector3 directDestination;
     private float nextCropAttackAt;
     private float nextChargeAt;
@@ -94,6 +95,23 @@ public sealed class BoarController : MonoBehaviour, IDamageable
         CurrentHealth = Mathf.Max(0f, CurrentHealth - amount);
         if (IsDead) BeginFlee();
         else BeginPlayerAggro();
+        return true;
+    }
+
+    public bool TryTakeDamageFromDog(float amount, DogHelperController dog)
+    {
+        if (!dog || dog.IsStunned || State == BoarState.Fleeing || IsDead ||
+            float.IsNaN(amount) || float.IsInfinity(amount) || amount <= 0f) return false;
+        CurrentHealth = Mathf.Max(0f, CurrentHealth - amount);
+        dogTarget = dog;
+        playerTarget = dog.transform;
+        if (IsDead) BeginFlee();
+        else if (State != BoarState.Charging)
+        {
+            cropTarget = null;
+            chargeHitbox.SetCharging(false);
+            State = BoarState.ChasingPlayer;
+        }
         return true;
     }
 
@@ -169,6 +187,7 @@ public sealed class BoarController : MonoBehaviour, IDamageable
 
     private void BeginPlayerAggro()
     {
+        dogTarget = null;
         playerTarget = FindNearestPlayer();
         cropTarget = null;
         chargeHitbox.SetCharging(false);
@@ -177,8 +196,18 @@ public sealed class BoarController : MonoBehaviour, IDamageable
 
     private void UpdateChasingPlayer()
     {
+        if (dogTarget && dogTarget.IsStunned)
+        {
+            dogTarget = null;
+            playerTarget = null;
+        }
         if (!playerTarget) playerTarget = FindNearestPlayer();
-        if (!playerTarget) return;
+        if (!playerTarget)
+        {
+            State = BoarState.SeekingCrop;
+            if (!FindNextCrop()) BeginSatisfiedFlee();
+            return;
+        }
         float distance = HorizontalDistance(transform.position, playerTarget.position);
         SetDestination(playerTarget.position, chaseSpeed, 1f);
         if (distance <= chargeStartDistance && Time.time >= nextChargeAt) BeginCharge();

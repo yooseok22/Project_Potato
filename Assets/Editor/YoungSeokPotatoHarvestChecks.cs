@@ -82,6 +82,8 @@ public static class YoungSeokPotatoHarvestChecks
 
             var clock = root.AddComponent<WorldClock>();
             var farmingSystem = root.AddComponent<PotatoFarmingSystem>();
+            typeof(PotatoFarmingSystem).GetField("bugSpawnChance", System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic).SetValue(farmingSystem, 0f);
             var coordinator = root.AddComponent<PotatoHarvestCoordinator>();
             coordinator.Configure(farmingSystem);
             var harvestCell = new Vector2Int(3, 3);
@@ -90,7 +92,7 @@ public static class YoungSeokPotatoHarvestChecks
                 "harvest integration crop registers");
             Check(farmingSystem.TryWater(ground, harvestCell),
                 "harvest integration crop starts growing");
-            ground.TrySetCellState(harvestCell, GroundCellState.EarlyHarvest);
+            clock.AdvanceBy(220d);
             Check(coordinator.TryCutForHarvest(ground, harvestCell)
                 && ground.GetCellState(harvestCell) == GroundCellState.UncoveredCut,
                 "early GB harvest freezes growth and changes to GB F");

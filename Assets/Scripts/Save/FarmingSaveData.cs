@@ -36,6 +36,11 @@ using UnityEngine;
     public bool watered, paused;
     public PotatoGrowthStage stage;
     public float health, maxHealth;
+    public PotatoStatus status;
+    public bool isSoilCovered, soilCoverDeadlineChecked;
+    public bool isMulchingFilmApplied;
+    public bool hasBugs, bugSpawnChecked;
+    public double bugExpiresAt;
 }
 
 [Serializable] public sealed class FarmSystemData

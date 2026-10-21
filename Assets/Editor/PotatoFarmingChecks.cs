@@ -6,6 +6,191 @@ using UnityEngine.SceneManagement;
 
 public static class PotatoFarmingChecks
 {
+    [MenuItem("Tools/Project Potato/Validate Mulching Film")]
+    public static void RunMulchingFilm()
+    {
+        var scene = EditorSceneManager.NewPreviewScene();
+        void Check(bool value, string message)
+        {
+            if (!value) throw new Exception("Mulching film check failed: " + message);
+        }
+        try
+        {
+            var root = new GameObject("MulchingChecks");
+            SceneManager.MoveGameObjectToScene(root, scene);
+            var grid = root.AddComponent<GroundGrid>();
+            var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            typeof(GroundGrid).GetMethod("Awake", flags).Invoke(grid, null);
+            var clock = root.AddComponent<WorldClock>();
+            var system = root.AddComponent<PotatoFarmingSystem>();
+            typeof(PotatoFarmingSystem).GetField("bugSpawnChance", flags).SetValue(system, 0f);
+            var cell = new Vector2Int(1, 1);
+            Check(!system.TryApplyMulchingFilm(grid, cell), "unplanted tile rejected");
+            system.TryStartFarming(grid, cell, clock);
+            system.TryWater(grid, cell);
+            Check(system.TryApplyMulchingFilm(grid, cell) && !system.TryApplyMulchingFilm(grid, cell),
+                "film applied once before exposure");
+            clock.AdvanceBy(80);
+            Check(grid.GetCellState(cell) == GroundCellState.SoilCoveredFirst && !grid.CanCoverPotato(cell),
+                "two-leaf potato stays hidden without cover interaction");
+            system.TryGetFarmingTile(grid, cell, out var tile);
+            var saved = (FarmCropData)tile.GetType().GetMethod("CaptureSaveData", flags).Invoke(tile, null);
+            var restored = (PotatoFarmingSystem.FarmingTile)Activator.CreateInstance(tile.GetType(), flags,
+                null, new object[] { saved, grid, clock, null }, null);
+            Check(restored.IsMulchingFilmApplied, "film flag saved and restored");
+            clock.AdvanceBy(70);
+            Check(grid.GetCellState(cell) == GroundCellState.SoilCoveredSecond, "four-leaf potato stays hidden");
+            clock.AdvanceBy(70);
+            Check(tile.CurrentHealth == 100 && !tile.HasAbnormalStatus &&
+                grid.GetCellState(cell) == GroundCellState.SoilCoveredThird, "deadline has no green or damage");
+            clock.AdvanceBy(80);
+            Check(tile.CurrentHealth == 100 && grid.GetCellState(cell) == GroundCellState.SoilCoveredFifth,
+                "film persists through final growth without coordinator");
+            system.StopFarming(grid, cell);
+            system.TryStartFarming(grid, cell, clock);
+            system.TryGetFarmingTile(grid, cell, out var replanted);
+            Check(!replanted.IsMulchingFilmApplied, "new planting does not inherit film");
+            Debug.Log("Mulching film checks passed.");
+        }
+        finally { EditorSceneManager.ClosePreviewScene(scene); }
+    }
+
+    [MenuItem("Tools/Project Potato/Validate Bug Infestation")]
+    public static void RunBugs()
+    {
+        var randomState = UnityEngine.Random.state;
+        var scene = EditorSceneManager.NewPreviewScene();
+        void Check(bool value, string message)
+        {
+            if (!value) throw new Exception("Bug check failed: " + message);
+        }
+        try
+        {
+            var root = new GameObject("BugChecks");
+            SceneManager.MoveGameObjectToScene(root, scene);
+            var grid = root.AddComponent<GroundGrid>();
+            var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            typeof(GroundGrid).GetMethod("Awake", flags).Invoke(grid, null);
+            var clock = root.AddComponent<WorldClock>();
+            var system = root.AddComponent<PotatoFarmingSystem>();
+            var chance = typeof(PotatoFarmingSystem).GetField("bugSpawnChance", flags);
+            Check((float)chance.GetValue(system) == 0.3f, "default probability is 30 percent");
+            chance.SetValue(system, 1f);
+            var a = new Vector2Int(1, 1);
+            var b = new Vector2Int(2, 2);
+            var c = new Vector2Int(3, 3);
+            foreach (var cell in new[] { a, b, c })
+            {
+                system.TryStartFarming(grid, cell, clock);
+                system.TryWater(grid, cell);
+            }
+            system.TryGetFarmingTile(grid, a, out var exposed);
+            system.TryGetFarmingTile(grid, b, out var removed);
+            clock.AdvanceBy(79);
+            Check(!exposed.HasBugs, "no bugs before two leaves");
+            clock.AdvanceBy(1);
+            Check(exposed.HasBugs && exposed.BugSecondsRemaining == 150 && !exposed.HasAbnormalStatus,
+                "spawn is not itself an abnormal status");
+            var saved = (FarmCropData)exposed.GetType().GetMethod("CaptureSaveData", flags).Invoke(exposed, null);
+            var restored = (PotatoFarmingSystem.FarmingTile)Activator.CreateInstance(exposed.GetType(), flags,
+                null, new object[] { saved, grid, clock, null }, null);
+            Check(restored.HasBugs && restored.BugSecondsRemaining == 150, "save preserves live bugs and deadline");
+            clock.AdvanceBy(149);
+            Check(exposed.HasBugs && exposed.BugSecondsRemaining == 1 && exposed.Status == PotatoStatus.Green,
+                "no bug damage before 150 seconds");
+            Check(system.TryRemoveBugs(grid, b) && !system.TryRemoveBugs(grid, b), "chase succeeds once");
+            Check(system.TryPauseGrowth(grid, c), "pause growth before deadline");
+            clock.AdvanceBy(1);
+            Check(!exposed.HasBugs && exposed.CurrentHealth == 80 &&
+                exposed.Status == (PotatoStatus.Green | PotatoStatus.BugEaten), "expiry stacks with green");
+            Check(removed.CurrentHealth == 90 && removed.Status == PotatoStatus.Green, "chased crop protected");
+            Check(!system.TryRemoveBugs(grid, a), "late chase fails and does not cure");
+            system.TryGetFarmingTile(grid, c, out var paused);
+            Check(!paused.HasBugs && (paused.Status & PotatoStatus.BugEaten) != 0, "growth pause does not stop world timer");
+            clock.AdvanceBy(500);
+            system.RefreshGrowth();
+            Check(exposed.CurrentHealth == 80 && !removed.HasBugs, "no repeated damage or respawn");
+            var d = new Vector2Int(4, 4);
+            system.TryStartFarming(grid, d, clock);
+            system.TryWater(grid, d);
+            clock.AdvanceBy(300);
+            system.TryGetFarmingTile(grid, d, out var skipped);
+            Check(!skipped.HasBugs && skipped.CurrentHealth == 80 &&
+                (skipped.Status & PotatoStatus.BugEaten) != 0, "long time skip expires bugs correctly");
+            chance.SetValue(system, 0f);
+            var e = new Vector2Int(5, 5);
+            system.TryStartFarming(grid, e, clock);
+            system.TryWater(grid, e);
+            clock.AdvanceBy(300);
+            system.TryGetFarmingTile(grid, e, out var noSpawn);
+            Check(!noSpawn.HasBugs && noSpawn.Status == PotatoStatus.Green, "failed roll never respawns");
+            Debug.Log("Bug infestation checks passed.");
+        }
+        finally
+        {
+            EditorSceneManager.ClosePreviewScene(scene);
+            UnityEngine.Random.state = randomState;
+        }
+    }
+
+    [MenuItem("Tools/Project Potato/Validate Soil Cover Deadline")]
+    public static void RunSoilCoverDeadline()
+    {
+        var scene = EditorSceneManager.NewPreviewScene();
+        void Check(bool value, string message)
+        {
+            if (!value) throw new Exception("Soil cover check failed: " + message);
+        }
+        try
+        {
+            var root = new GameObject("SoilCoverChecks");
+            SceneManager.MoveGameObjectToScene(root, scene);
+            var grid = root.AddComponent<GroundGrid>();
+            typeof(GroundGrid).GetMethod("Awake", System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic)?.Invoke(grid, null);
+            var clock = root.AddComponent<WorldClock>();
+            var system = root.AddComponent<PotatoFarmingSystem>();
+            typeof(PotatoFarmingSystem).GetField("bugSpawnChance", System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic).SetValue(system, 0f);
+            var harvest = root.AddComponent<PotatoHarvestCoordinator>();
+            harvest.Configure(system);
+            var a = new Vector2Int(1, 1);
+            var b = new Vector2Int(2, 2);
+            system.TryStartFarming(grid, a, clock);
+            system.TryStartFarming(grid, b, clock);
+            system.TryWater(grid, a);
+            system.TryWater(grid, b);
+            system.TryGetFarmingTile(grid, a, out var exposed);
+            system.TryGetFarmingTile(grid, b, out var covered);
+            clock.AdvanceBy(80);
+            Check(grid.TryCoverPotato(b), "cover at two leaves");
+            harvest.MarkCovered(grid, b);
+            clock.AdvanceBy(139);
+            Check(exposed.CurrentHealth == 100 && !exposed.HasAbnormalStatus, "no penalty before deadline");
+            clock.AdvanceBy(1);
+            Check(exposed.CurrentHealth == 90 && exposed.Status == PotatoStatus.Green,
+                "exactly ten damage and green at six leaves");
+            Check(covered.CurrentHealth == 100 && !covered.HasAbnormalStatus, "covered crop protected");
+            var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            var saved = (FarmCropData)exposed.GetType().GetMethod("CaptureSaveData", flags).Invoke(exposed, null);
+            var restored = (PotatoFarmingSystem.FarmingTile)Activator.CreateInstance(exposed.GetType(), flags,
+                null, new object[] { saved, grid, clock, null }, null);
+            Check(restored.Status == PotatoStatus.Green && saved.soilCoverDeadlineChecked &&
+                restored.CurrentHealth == 90, "save round trip preserves penalty and status");
+            Check(grid.TryCoverPotato(a), "late covering allowed");
+            harvest.MarkCovered(grid, a);
+            system.RefreshGrowth();
+            clock.AdvanceBy(40);
+            Check(exposed.CurrentHealth == 90 && exposed.HasAbnormalStatus, "late cover does not cure green");
+            Check(harvest.TryCutForHarvest(grid, a) && exposed.CurrentHealth == 90,
+                "optimal cutting does not repeat soil damage");
+            Check(system.TryAddStatus(grid, a, PotatoStatus.BugEaten) &&
+                exposed.Status == (PotatoStatus.Green | PotatoStatus.BugEaten), "conditions coexist independently of HP");
+            Debug.Log("Soil cover deadline checks passed.");
+        }
+        finally { EditorSceneManager.ClosePreviewScene(scene); }
+    }
+
     [MenuItem("Tools/Project Potato/Validate Farming Tile Integration")]
     public static void Run()
     {
@@ -25,6 +210,8 @@ public static class PotatoFarmingChecks
                 System.Reflection.BindingFlags.NonPublic)?.Invoke(ground, null);
             var clock = root.AddComponent<WorldClock>();
             var system = root.AddComponent<PotatoFarmingSystem>();
+            typeof(PotatoFarmingSystem).GetField("bugSpawnChance", System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic).SetValue(system, 0f);
             var a = new Vector2Int(1, 2);
             var b = new Vector2Int(3, 4);
             var c = new Vector2Int(5, 6);
@@ -114,7 +301,7 @@ public static class PotatoFarmingChecks
             clock.AdvanceBy(300);
             Check(!system.TryGetFarmingTile(ground, a, out _), "callback can remove tile during time skip");
             Check(system.TryDamage(ground, b, 30f), "harvest test crop takes damage");
-            Check(system.TryCompleteHarvest(ground, b, out float harvestedHp) && harvestedHp == 70f &&
+            Check(system.TryCompleteHarvest(ground, b, out float harvestedHp) && harvestedHp == 60f &&
                 !system.TryGetFarmingTile(ground, b, out _),
                 "complete harvest returns current HP and removes farming data");
             Check(!system.TryCompleteHarvest(ground, b, out float missingHp) && missingHp == 0f,
