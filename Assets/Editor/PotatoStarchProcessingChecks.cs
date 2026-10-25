@@ -10,9 +10,10 @@ public static class PotatoStarchProcessingChecks
 {
     private const string BlenderPath = "Assets/Fbx/Food Processing/Potato Millionaire Strach Blender 1.fbx";
     private const string MakerPath = "Assets/Fbx/Food Processing/Potato Millionaire Strach Maker 1.fbx";
+    private const string DropSourcePath = "Assets/Fbx/Fbx/Potato Millionaire Strach Maker 1.fbx";
     private const string SetupRootName = "PotatoStarchTestSetup";
     private static readonly string[] BlenderClips = { "Anim_Blender Lid Open", "Anim_Blender Lid Close", "Anim_Blender Start", "Anim_Blender Working", "Anim_Blender End" };
-    private static readonly string[] MakerClips = { "Anim_Starch Water Basket Use", "Anim_Starch Water Basket Working", "Anim_Starch Dry Basket Use", "Anim_Starch Maker H1-1 Use", "Anim_Starch Maker H2-1 Use", "Anim_Starch Water Basket Drop" };
+    private static readonly string[] MakerClips = { "Anim_Starch Water Basket Use", "Anim_Starch Water Basket Working", "Anim_Starch Dry Basket Use", "Anim_Starch Maker H1-1 Use", "Anim_Starch Maker H2-1 Use", "Anim_Starch Water Basket Drop", "Anim_Starch Dry Basket Drop" };
 
     [MenuItem("Tools/Project Potato/Setup Potato Starch Test")]
     public static void SetupTestScene()
@@ -38,6 +39,25 @@ public static class PotatoStarchProcessingChecks
         Undo.SetTransformParent(blenderProp.transform, root.transform, "Connect blender");
         Undo.SetTransformParent(makerProp.transform, root.transform, "Connect maker");
         ConfigureStation(root, blenderProp, makerProp, clock, true);
+        var bundle = objects.FirstOrDefault(t => t.name == "FBX_Starch Packaging Bundle");
+        if (!bundle) throw new InvalidOperationException("The scene needs FBX_Starch Packaging Bundle.");
+        // Bring the existing packaging display beside the test equipment if it is still at its export location.
+        var packagingRoot = bundle.parent;
+        if (Vector3.Distance(bundle.position, makerProp.transform.position) > 20f)
+        {
+            Undo.RecordObject(packagingRoot, "Place packaging beside starch station");
+            var bounds = BoundsOf(bundle.GetComponentsInChildren<Renderer>());
+            var target = makerProp.transform.position + makerProp.transform.right * 2.5f;
+            packagingRoot.position += target - new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
+            PrefabUtility.RecordPrefabInstancePropertyModifications(packagingRoot);
+        }
+        Component<StarchPackagingBundle>(bundle.gameObject, true);
+        Box(bundle.gameObject, BoundsOf(bundle.GetComponentsInChildren<Renderer>()), true);
+        Outline(bundle.gameObject, bundle.GetComponentsInChildren<Renderer>(), true);
+        var packagingAnimator = packagingRoot.GetComponent<Animator>();
+        if (packagingAnimator) { Undo.RecordObject(packagingAnimator, "Disable unused packaging animation"); packagingAnimator.enabled = false; Dirty(packagingAnimator); }
+        foreach (var player in objects.Select(t => t.GetComponent<PlayerInteractionController>()).Where(p => p))
+            Component<StarchPackagingInventory>(player.gameObject, true);
         Undo.CollapseUndoOperations(group);
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
@@ -67,7 +87,10 @@ public static class PotatoStarchProcessingChecks
         if (undo) Undo.RecordObjects(prop.GetComponentsInChildren<Transform>(true).Cast<UnityEngine.Object>().Concat(new UnityEngine.Object[] { driver, prop.GetComponent<Animator>() }).ToArray(), "Set starch initial pose");
         for (int index = 0; index < names.Length; index++)
         {
-            var clip = clips.Single(c => c.name == names[index]);
+            var clip = clips.SingleOrDefault(c => c.name == names[index]);
+            if (!clip && names[index] == "Anim_Starch Dry Basket Drop")
+                clip = AssetDatabase.LoadAllAssetsAtPath(DropSourcePath).OfType<AnimationClip>().Single(c => c.name == names[index]);
+            if (!clip) throw new InvalidOperationException("Missing starch clip: " + names[index]);
             if (clip.isLooping) throw new InvalidOperationException("Starch clips must not loop: " + clip.name);
             var tracks = new Dictionary<string, StarchPropAnimationDriver.TransformTrack>();
             foreach (var binding in AnimationUtility.GetCurveBindings(clip))
@@ -151,8 +174,8 @@ public static class PotatoStarchProcessingChecks
         if (name == "DryingTray_Carry")
             carry.ConfigureHeldPose(new Vector3(-0.22f, -0.12f, 0.32f), new Vector3(-25f, 0f, 0f),
                 prop.transform.lossyScale * (heldSize / Mathf.Max(0.01f, dimension)));
-        if (name == "DryingTray_Carry")
-            carry.ConfigureHeldPose(new Vector3(-0.22f, -0.12f, 0.32f), new Vector3(-25f, 0f, 0f),
+        if (name == "WaterBasket_Carry")
+            carry.ConfigureHeldPose(new Vector3(-0.12f, 0.04f, 0.28f), Vector3.zero,
                 prop.transform.lossyScale * (heldSize / Mathf.Max(0.01f, dimension)));
         Box(root.gameObject, bounds, undo);
         Outline(root.gameObject, renderers, undo);
@@ -168,13 +191,18 @@ public static class PotatoStarchProcessingChecks
         var head = Renderer(blenderProp, "FBX_Blender Head");
         var lid = Renderer(blenderProp, "FBX_Blender Lid");
         var trayMesh = Renderer(makerProp, "FBX_Starch Dry Basket");
+        var waterMesh = Renderer(makerProp, "FBX_Starch Water Basket");
         var blenderBone = blenderProp.transform.Find("B_Blender Pelvis/B_Blender All/B_Blender Head");
         var trayBone = makerProp.transform.Find("B_Starch Maker Pelvis/B_Starch Maker.001/B_Starch Dry Basket");
+        var waterBone = makerProp.transform.Find("B_Starch Maker Pelvis/B_Starch Maker.001/B_Starch Water Basket");
         var blenderCarry = Carry(blenderProp, "BlenderContainer_Carry", blenderBone, new[] { head, lid }, 0.48f, undo);
         var trayCarry = Carry(makerProp, "DryingTray_Carry", trayBone, new[] { trayMesh }, 0.62f, undo);
+        var waterCarry = Carry(makerProp, "WaterBasket_Carry", waterBone, new[] { waterMesh }, 0.55f, undo);
         var blender = Component<StarchBlender>(blenderProp, undo);
         var sieve = Component<StarchSieve>(makerProp, undo);
         var tray = Component<StarchDryingTray>(trayCarry.gameObject, undo);
+        var waterBasket = Component<StarchWaterBasket>(waterCarry.gameObject, undo);
+        waterBasket.ConfigureCollider(waterBone.Find("B_Starch Water Basket"));
         var makerBounds = BoundsOf(makerProp.GetComponentsInChildren<SkinnedMeshRenderer>().Where(r => r != trayMesh));
         var trayBounds = trayMesh.bounds;
         var interactionBounds = makerBounds;
@@ -187,17 +215,22 @@ public static class PotatoStarchProcessingChecks
         Box(makerProp, interactionBounds, undo);
         Box(blenderProp, BoundsOf(blenderProp.GetComponentsInChildren<SkinnedMeshRenderer>().Where(r => r != head && r != lid)), undo);
         Outline(blenderProp, blenderProp.GetComponentsInChildren<SkinnedMeshRenderer>().Cast<Renderer>().ToArray(), undo);
-        Outline(makerProp, makerProp.GetComponentsInChildren<SkinnedMeshRenderer>().Where(r => r != trayMesh).Cast<Renderer>().ToArray(), undo);
+        Outline(makerProp, makerProp.GetComponentsInChildren<SkinnedMeshRenderer>().Where(r => r != trayMesh && r != waterMesh).Cast<Renderer>().ToArray(), undo);
         var anchor = Child(makerProp.transform, "DryingAnchor", undo);
         if (undo) Undo.RecordObject(anchor, "Position top drying anchor");
-        anchor.SetPositionAndRotation(new Vector3(makerBounds.center.x,
-            makerBounds.max.y + 0.04f + trayCarry.transform.position.y - trayBounds.min.y,
-            makerBounds.center.z), makerProp.transform.rotation);
+        // The imported Dry Basket Drop starts precisely on the upper support ledges.
+        // Use the same pose for carrying/placement so rejoining the rig has no visible snap.
+        var animatedTrayBone = trayBone.Find("B_Starch Dry Basket");
+        Vector3 lowerBonePosition = animatedTrayBone.position;
+        makerDriver.SetTime(StarchAnimationId.DryBasketDrop, 0d);
+        Vector3 supportOffset = animatedTrayBone.position - lowerBonePosition;
+        anchor.SetPositionAndRotation(trayCarry.transform.position + supportOffset, makerProp.transform.rotation);
+        makerDriver.SetTime(StarchAnimationId.DryBasketDrop, makerDriver.Length(StarchAnimationId.DryBasketDrop));
         anchor.localScale = Vector3.one;
         var processor = Component<PotatoStarchProcessor>(root, undo);
         if (undo) Undo.RecordObject(processor, "Configure starch station");
-        processor.Configure(clock, blender, sieve, tray, blenderDriver, makerDriver, anchor);
-        Dirty(processor); Dirty(blender); Dirty(sieve); Dirty(tray);
+        processor.Configure(clock, blender, sieve, tray, blenderDriver, makerDriver, anchor, waterBasket);
+        Dirty(processor); Dirty(blender); Dirty(sieve); Dirty(tray); Dirty(waterBasket);
         foreach (var component in root.GetComponentsInChildren<Component>(true))
         {
             Dirty(component);
@@ -226,6 +259,23 @@ public static class PotatoStarchProcessingChecks
             clock.Speed = 1f;
             clock.IsPaused = false;
             var p = ConfigureStation(root, blender, maker, clock, false);
+            var playerObject = Child(root.transform, "PackagingPlayer", false).gameObject;
+            var player = playerObject.AddComponent<PlayerInteractionController>();
+            var items = playerObject.AddComponent<PlayerItemController>();
+            // Preview scenes do not run PlayerItemController.Start, so supply its normal hand anchor.
+            var handAnchor = Child(playerObject.transform, "HandAnchor", false);
+            handAnchor.position = new Vector3(4f, 2f, -1f);
+            typeof(PlayerItemController).GetField("<HeldItemAnchor>k__BackingField",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).SetValue(items, handAnchor);
+            var waterBasket = maker.GetComponentInChildren<StarchWaterBasket>();
+            var waterRenderer = maker.transform.Find("FBX_Starch Water Basket").GetComponent<SkinnedMeshRenderer>();
+            var initialWaterVertices = WorldVertices(waterRenderer);
+            var held = Child(root.transform, "HeldObject", false).gameObject.AddComponent<ProcessingCarryItem>();
+            var bundle = Child(root.transform, "PackagingBundle", false).gameObject.AddComponent<StarchPackagingBundle>();
+            bundle.Interact(player);
+            var inventory = player.GetComponent<StarchPackagingInventory>();
+            Check(inventory.WrapperCount == 1 && !items.HasItem(PlayerItemSlot.Hands), "wrapper pickup is a count, never a hand item");
+            Check(!p.TryTakeWaterBasket(player), "installed water basket cannot be taken before drying");
             Check(Math.Abs(p.GrindingDuration - 3.6000002d) < 0.001, "original blender duration");
             Check(Math.Abs(p.DrainingDuration - 3.3d) < 0.001, "original drain duration");
             Check(!p.TryStartGrinding(), "start requires lid/load phase");
@@ -256,27 +306,113 @@ public static class PotatoStarchProcessingChecks
             Check(!p.TryTakeWetTray(null), "both drain clips must finish");
             clock.AdvanceBy(0.01d);
             Check(p.TryTakeWetTray(null), "full wet tray ready");
+            var trayCarry = maker.GetComponentInChildren<StarchDryingTray>().CarryItem;
+            var trayRig = trayCarry.GetComponent<ProcessingCarryRig>();
+            var trayRenderer = maker.transform.Find("FBX_Starch Dry Basket").GetComponent<SkinnedMeshRenderer>();
+            trayRig.Detach();
             Check(!p.TryPlaceTrayOnMaker(null), "cannot bypass handles/drop");
-            Check(p.TryUseMaker(null) && !p.TryUseMaker(null), "first handle input and lock");
-            clock.AdvanceBy(p.MakerAnimation.Length(StarchAnimationId.HandleOne));
-            Check(p.SieveState == StarchSieveState.HandleOneDone, "first handle waits at end");
-            Check(p.TryUseMaker(null), "second handle input");
-            clock.AdvanceBy(p.MakerAnimation.Length(StarchAnimationId.HandleTwo) * 0.5d);
-            Check(Math.Abs(p.MakerAnimation.HeldTime(StarchAnimationId.HandleOne) - p.MakerAnimation.Length(StarchAnimationId.HandleOne)) < 0.0001, "first handle stays pulled");
-            clock.AdvanceBy(p.MakerAnimation.Length(StarchAnimationId.HandleTwo) * 0.5d);
+            Check(p.TryUseMaker(null) && !p.TryUseMaker(null), "one input starts both handles and locks input");
+            clock.AdvanceBy(p.HandlesDuration * 0.5d);
+            Check(p.MakerAnimation.HeldTime(StarchAnimationId.HandleOne) > 0f &&
+                Math.Abs(p.MakerAnimation.HeldTime(StarchAnimationId.HandleOne) - p.MakerAnimation.HeldTime(StarchAnimationId.HandleTwo)) < 0.0001, "both handles advance together");
+            clock.AdvanceBy(p.HandlesDuration * 0.5d);
             Check(p.SieveState == StarchSieveState.Dropping && !p.TryPlaceTrayOnMaker(null), "automatic drop, no early placement");
             Check(p.MakerAnimation.HeldTime(StarchAnimationId.HandleOne) == 0f && p.MakerAnimation.HeldTime(StarchAnimationId.HandleTwo) == 0f, "both handles reset");
             clock.AdvanceBy(p.MakerAnimation.Length(StarchAnimationId.BasketDrop));
             Check(p.TryPlaceTrayOnMaker(null), "place on maker");
+            trayCarry.transform.SetParent(p.DryingAnchor, false);
+            trayCarry.transform.localPosition = Vector3.zero;
+            trayCarry.transform.localRotation = Quaternion.identity;
+            Check(Math.Abs(p.DryingAnchor.localPosition.y - 1.537123f) < 0.005f, "tray sits on support ledges instead of above corner posts");
+            waterBasket.RefreshCollider();
+            Check(p.WaterBasketState == StarchWaterBasketState.Lowered &&
+                waterBasket.GetComponent<BoxCollider>().bounds.center.y < 1f, "pickup collider follows the lowered water basket");
+            Check(!p.TryTakeWaterBasket(player), "water basket stays below until drying completes");
             clock.IsPaused = true;
             clock.Tick(20d);
             Check(p.DryingSecondsRemaining == 150, "pause stops drying");
             clock.IsPaused = false;
             clock.AdvanceBy(149.99d);
-            Check(!p.TryCollectProduct(), "no early collection");
+            Check(!p.TryStartPackaging(player) && !p.TryUseMaker(null), "no early packaging or dry drop");
             clock.AdvanceBy(0.01d);
-            Check(p.TryCollectProduct() && p.LastProducedPackCount == 5 && p.TotalProducedPackCount == 5, "collect once");
-            Check(!p.TryCollectProduct() && p.SieveFillCount == 0 && p.TrayState == StarchTrayState.InstalledEmpty, "empty reset/no double collect");
+            Check(p.TrayState == StarchTrayState.Dried && inventory.StarchPackCount == 0, "drying never auto-awards packs");
+            Check(!p.TryUseMaker(player) && !maker.GetComponent<StarchSieve>().CanInteract(player), "cannot drop dry tray without picking up water basket");
+            items.TryHoldInHands(held);
+            Check(!p.TryTakeWaterBasket(player), "occupied hands block water basket pickup");
+            items.TryReleaseFromHands(held);
+            Check(waterBasket.CanInteract(player) && p.TryTakeWaterBasket(player) &&
+                p.WaterBasketState == StarchWaterBasketState.Carried && waterBasket.CarryItem.IsCarriedBy(player), "pick up actual lower water basket into player's hand");
+            Check(waterBasket.GetComponent<ProcessingCarryRig>().IsDetached && !waterBasket.GetComponent<BoxCollider>().enabled,
+                "water basket mesh follows independent hand rig and disables collider");
+            Check(!p.TryTakeWaterBasket(player) && !p.TryReturnWaterBasket(player), "no duplicate pickup or early return");
+            var otherPlayer = Child(root.transform, "OtherPlayer", false).gameObject.AddComponent<PlayerInteractionController>();
+            otherPlayer.gameObject.AddComponent<PlayerItemController>();
+            Check(!p.TryUseMaker(otherPlayer), "another player cannot operate the basket carrier's handles");
+            items.SelectSlot(PlayerItemSlot.Hoe);
+            Check(!p.TryUseMaker(player), "water basket must be selected in hands to use handles");
+            items.SelectSlot(PlayerItemSlot.Hands);
+            var carriedWaterVertices = WorldVertices(waterRenderer);
+            var upperVertices = WorldVertices(trayRenderer);
+            Check(p.TryUseMaker(player) && !p.TryUseMaker(player), "one dry input starts both handles");
+            clock.AdvanceBy(p.HandlesDuration * 0.5d);
+            Check(p.MakerAnimation.HeldTime(StarchAnimationId.HandleOne) > 0f &&
+                Math.Abs(p.MakerAnimation.HeldTime(StarchAnimationId.HandleOne) - p.MakerAnimation.HeldTime(StarchAnimationId.HandleTwo)) < 0.0001, "dry handles run simultaneously too");
+            clock.AdvanceBy(p.HandlesDuration * 0.5d);
+            Check(p.SieveState == StarchSieveState.DryDropping && !trayRig.IsDetached, "dry drop rejoins source rig");
+            Check(upperVertices.Zip(WorldVertices(trayRenderer), (a, b) => (a - b).sqrMagnitude).All(d => d < 0.00001f), "rejoining at the top has no visible position jump");
+            Check(!p.TryStartPackaging(player), "no packaging during fall");
+            Check(!p.TryReturnWaterBasket(player), "return blocked until dry drop ends");
+            clock.AdvanceBy(p.MakerAnimation.Length(StarchAnimationId.DryBasketDrop) * 0.5d);
+            Check(WorldVertices(trayRenderer).Average(v => v.y) < upperVertices.Average(v => v.y) - 0.1f, "visible mesh really falls");
+            clock.AdvanceBy(p.MakerAnimation.Length(StarchAnimationId.DryBasketDrop) * 0.5d);
+            Check(p.TrayState == StarchTrayState.ReadyToPack && p.RemainingPackCount == 5, "landed tray is ready to package five single packs");
+            Check(p.SieveState == StarchSieveState.WaitingForBasketReturn && !p.TryStartPackaging(player), "must explicitly return water basket before packaging");
+            Check(carriedWaterVertices.Zip(WorldVertices(waterRenderer), (a, b) => (a - b).sqrMagnitude).All(d => d < 0.00001f),
+                "dry tray drop leaves carried water basket in the player's hand");
+            var landedTrayVertices = WorldVertices(trayRenderer);
+            Check(!p.TryReturnWaterBasket(otherPlayer), "another player cannot return the carried basket");
+            Check(p.TryUseMaker(player), "fresh E returns water basket after drop");
+            Check(p.WaterBasketState == StarchWaterBasketState.Docked && p.SieveState == StarchSieveState.ReadyToPack &&
+                !items.HasItem(PlayerItemSlot.Hands) && !waterBasket.GetComponent<ProcessingCarryRig>().IsDetached,
+                "water basket returns to upper rig and frees hands");
+            Check(p.RemainingPackCount == 5 && inventory.StarchPackCount == 0 &&
+                landedTrayVertices.Zip(WorldVertices(trayRenderer), (a, b) => (a - b).sqrMagnitude).All(d => d < 0.00001f),
+                "return preserves finished starch and lower tray pose");
+            Check(initialWaterVertices.Zip(WorldVertices(waterRenderer), (a, b) => (a - b).sqrMagnitude).All(d => d < 0.00001f),
+                "water basket and contents return to original empty upper pose");
+            Check(!p.TryReturnWaterBasket(player) && !p.TryLoadBlender(), "no duplicate return or new production before packaging is finished");
+            items.SelectSlot(PlayerItemSlot.Hoe);
+            Check(!p.TryStartPackaging(player) && inventory.WrapperCount == 1, "tools block packaging without consuming wrapper");
+            items.SelectSlot(PlayerItemSlot.Hands);
+            items.TryHoldInHands(held);
+            Check(!p.TryStartPackaging(player), "occupied hand slot blocks packaging");
+            items.TryReleaseFromHands(held);
+            Check(p.TryStartPackaging(player), "bare hands and wrapper begin packaging");
+            items.SelectSlot(PlayerItemSlot.Hoe);
+            clock.AdvanceBy(0.1d);
+            Check(p.TrayState == StarchTrayState.ReadyToPack && inventory.WrapperCount == 1 && inventory.StarchPackCount == 0, "changing tools cancels and refunds exactly one wrapper");
+            items.SelectSlot(PlayerItemSlot.Hands);
+            for (int pack = 1; pack <= 5; pack++)
+            {
+                if (pack > 1)
+                {
+                    Check(!p.TryStartPackaging(player), "no wrapper means no pack");
+                    bundle.Interact(player);
+                }
+                Check(p.TryStartPackaging(player) && inventory.WrapperCount == 0, "reserve exactly one wrapper");
+                Check(!p.TryStartPackaging(player) && !bundle.CanInteract(player), "busy input cannot duplicate or take extra wrappers");
+                clock.IsPaused = true;
+                clock.Tick(20d);
+                Check(inventory.StarchPackCount == pack - 1, "pause stops packaging");
+                clock.IsPaused = false;
+                clock.AdvanceBy(2.99d);
+                Check(inventory.StarchPackCount == pack - 1 && p.TrayState == StarchTrayState.Packing, "no pack before three seconds");
+                clock.AdvanceBy(0.01d);
+                Check(inventory.StarchPackCount == pack && p.TotalProducedPackCount == pack && p.LastProducedPackCount == 1, "three seconds awards exactly one pack");
+                clock.AdvanceBy(30d);
+                Check(inventory.StarchPackCount == pack, "waits for a fresh E; never auto-repeats");
+            }
+            Check(!p.TryStartPackaging(player) && p.SieveFillCount == 0 && p.TrayState == StarchTrayState.InstalledEmpty, "empty reset/no double collect");
             Check(p.TryLoadBlender(), "second cycle can start");
             clock.AdvanceBy(100d);
             Check(p.BlenderState == StarchBlenderState.LoadedReady, "time skip stops at input gate");
@@ -289,9 +425,20 @@ public static class PotatoStarchProcessingChecks
             p.MakerAnimation.SetTime(StarchAnimationId.TrayFill, p.MakerAnimation.Length(StarchAnimationId.TrayFill));
             ValidateRig(maker.transform.Find("DryingTray_Carry").GetComponent<ProcessingCarryRig>(),
                 maker.transform.Find("FBX_Starch Dry Basket").GetComponent<SkinnedMeshRenderer>(), Check);
-            Debug.Log($"[PotatoStarchProcessingChecks] PASS: {checks} checks. Original clips, full cycle, partial poses and carry rigs.");
+            ValidateRig(waterBasket.GetComponent<ProcessingCarryRig>(), waterRenderer, Check);
+            Debug.Log($"[PotatoStarchProcessingChecks] PASS: {checks} checks. Full cycle, water basket pickup/ownership/return, preserved dry tray, simultaneous handles, timed bare-hand packaging and carry rigs.");
         }
         finally { EditorSceneManager.ClosePreviewScene(scene); }
+    }
+    private static Vector3[] WorldVertices(SkinnedMeshRenderer renderer)
+    {
+        var mesh = new Mesh();
+        try
+        {
+            renderer.BakeMesh(mesh);
+            return mesh.vertices.Select(renderer.transform.TransformPoint).ToArray();
+        }
+        finally { UnityEngine.Object.DestroyImmediate(mesh); }
     }
     private static void ValidateRig(ProcessingCarryRig rig, SkinnedMeshRenderer renderer, Action<bool, string> check)
     {

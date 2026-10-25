@@ -92,6 +92,7 @@ public sealed class FarmingSaveSection : ISaveSection
             foreach (var cell in harvest.cells)
                 SaveValidation.Require(cell != null && cell.gridId != null && grids.ContainsKey(cell.gridId)
                     && grids[cell.gridId].ContainsCell(new Vector2Int(cell.x, cell.y)) && seen.Add((cell.gridId, cell.x, cell.y))
+                    && (cell.conditions & ~PotatoHarvestConditionRules.Harvestable) == 0
                     && Enum.IsDefined(typeof(PotatoHarvestTiming), cell.timing), "Invalid harvest state.");
         }
         return () =>

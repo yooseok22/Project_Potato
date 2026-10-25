@@ -9,9 +9,11 @@ public enum StarchBlenderState : byte
 public enum StarchSieveState : byte
 {
     Filling, FillingSegment, Draining, WetStarchReady, TrayRemoved,
-    HandleOneMoving, HandleOneDone, HandleTwoMoving, Dropping, ReadyToDry, Drying
+    HandlesMoving, Dropping, ReadyToDry, Drying, DryHandlesMoving, DryDropping, ReadyToPack,
+    DryBasketCarried, WaitingForBasketReturn
 }
-public enum StarchTrayState : byte { InstalledEmpty, InstalledWet, CarriedWet, Drying, Dried }
+public enum StarchTrayState : byte { InstalledEmpty, InstalledWet, CarriedWet, Drying, Dried, ReadyToPack, Packing }
+public enum StarchWaterBasketState : byte { Docked, Lowered, Carried }
 
 [DisallowMultipleComponent]
 public sealed class PotatoStarchProcessor : MonoBehaviour
@@ -21,6 +23,7 @@ public sealed class PotatoStarchProcessor : MonoBehaviour
     [SerializeField] private StarchBlender blender;
     [SerializeField] private StarchSieve sieve;
     [SerializeField] private StarchDryingTray dryingTray;
+    [SerializeField] private StarchWaterBasket waterBasket;
     [SerializeField] private StarchPropAnimationDriver blenderAnimation;
     [SerializeField] private StarchPropAnimationDriver makerAnimation;
     [SerializeField] private Transform dryingAnchor;
@@ -28,18 +31,29 @@ public sealed class PotatoStarchProcessor : MonoBehaviour
     [SerializeField, Min(0.1f)] private float dryingLogIntervalSeconds = 30f;
     [SerializeField, Min(1)] private int potatoesPerBatch = 4;
     [SerializeField, Min(1)] private int starchPacksPerCycle = 5;
+    [SerializeField, Min(0.1f)] private float packagingSeconds = 3f;
     private const int Capacity = 5;
     private WorldClock boundClock;
     private double fallbackTime, blenderStartedAt, makerStartedAt, dryingEndsAt, nextDryingLogAt;
     private bool initialized;
+    private double packagingEndsAt;
+    private PlayerInteractionController packagingPlayer;
+    private StarchPackagingInventory packagingInventory;
 
     public StarchBlenderState BlenderState { get; private set; }
     public StarchSieveState SieveState { get; private set; }
     public StarchTrayState TrayState { get; private set; }
+    public StarchWaterBasketState WaterBasketState { get; private set; }
+    public bool CanTakeWaterBasket => WaterBasketState == StarchWaterBasketState.Lowered &&
+        TrayState == StarchTrayState.Dried && SieveState == StarchSieveState.Drying;
     public int SieveFillCount { get; private set; }
     public int SieveBatchCapacity => Capacity;
     public int LastProducedPackCount { get; private set; }
     public int TotalProducedPackCount { get; private set; }
+    public int RemainingPackCount { get; private set; }
+    public float PackagingDuration => packagingSeconds;
+    public float PackagingSecondsRemaining => (float)Math.Max(0d, packagingEndsAt - Now);
+    public double HandlesDuration => Math.Max(MakerLength(StarchAnimationId.HandleOne), MakerLength(StarchAnimationId.HandleTwo));
     public int DryingSecondsRemaining => (int)Math.Ceiling(Math.Max(0d, dryingEndsAt - Now));
     public double GrindingDuration => BlenderLength(StarchAnimationId.BlenderStart) +
         BlenderLength(StarchAnimationId.BlenderWorking) + BlenderLength(StarchAnimationId.BlenderEnd);
@@ -60,18 +74,21 @@ public sealed class PotatoStarchProcessor : MonoBehaviour
     }
     private void Update()
     {
+        // Check even when the shared clock is paused, so changing tools cannot finish a reserved pack.
+        if (TrayState == StarchTrayState.Packing && !CanContinuePackaging()) CancelPackaging();
         if (clock) return;
         fallbackTime += Time.deltaTime;
         EvaluateTimers();
     }
     private void OnDisable()
     {
+        CancelPackaging();
         if (boundClock) boundClock.TimeAdvanced -= EvaluateTimers;
         boundClock = null;
     }
     public void Configure(WorldClock worldClock, StarchBlender starchBlender, StarchSieve starchSieve,
         StarchDryingTray tray, StarchPropAnimationDriver blenderDriver,
-        StarchPropAnimationDriver makerDriver, Transform topAnchor)
+        StarchPropAnimationDriver makerDriver, Transform topAnchor, StarchWaterBasket basket)
     {
         if (boundClock) boundClock.TimeAdvanced -= EvaluateTimers;
         boundClock = null;
@@ -79,6 +96,7 @@ public sealed class PotatoStarchProcessor : MonoBehaviour
         blender = starchBlender;
         sieve = starchSieve;
         dryingTray = tray;
+        waterBasket = basket;
         blenderAnimation = blenderDriver;
         makerAnimation = makerDriver;
         dryingAnchor = topAnchor;
@@ -91,6 +109,7 @@ public sealed class PotatoStarchProcessor : MonoBehaviour
         blender?.Configure(this);
         sieve?.Configure(this);
         dryingTray?.Configure(this);
+        waterBasket?.Configure(this);
     }
     private void BindClock()
     {
@@ -102,8 +121,8 @@ public sealed class PotatoStarchProcessor : MonoBehaviour
     private void EnsureInitialized()
     {
         if (initialized) return;
-        if (!blenderAnimation || !makerAnimation || !dryingAnchor)
-            throw new InvalidOperationException("Starch props need animation drivers and a top drying anchor.");
+        if (!blenderAnimation || !makerAnimation || !dryingAnchor || !waterBasket)
+            throw new InvalidOperationException("Starch props need animation drivers, a top drying anchor and a water basket.");
         ResetCycle();
         initialized = true;
     }
@@ -176,27 +195,67 @@ public sealed class PotatoStarchProcessor : MonoBehaviour
     }
     public bool TryUseMaker(PlayerInteractionController player)
     {
+        if (SieveState == StarchSieveState.WaitingForBasketReturn) return TryReturnWaterBasket(player);
+        if (SieveState == StarchSieveState.DryBasketCarried && TrayState == StarchTrayState.Dried)
+        {
+            if (!IsHoldingWaterBasket(player)) return Fail("손잡이 조작 실패: 자신의 물 바스켓을 손에 들어야 함");
+            SieveState = StarchSieveState.DryHandlesMoving;
+            BeginHandles();
+            Log("건조 완료 배출 시작. H1-1 USE + H2-1 USE 동시 작동");
+            return true;
+        }
+        if (CanTakeWaterBasket) return Fail("손잡이 조작 실패: 아래 물 바스켓을 먼저 들어야 함");
         if (TrayState != StarchTrayState.CarriedWet || (player && !dryingTray.CarryItem.IsCarriedBy(player)))
             return Fail("재배기 조작 실패: 전분 틀을 들어야 함");
         switch (SieveState)
         {
             case StarchSieveState.TrayRemoved:
-                SieveState = StarchSieveState.HandleOneMoving;
-                makerStartedAt = Now;
-                makerAnimation.SetTime(StarchAnimationId.HandleOne, 0d);
-                Log("첫 번째 손잡이 당기기");
-                return true;
-            case StarchSieveState.HandleOneDone:
-                SieveState = StarchSieveState.HandleTwoMoving;
-                makerStartedAt = Now;
-                makerAnimation.SetTime(StarchAnimationId.HandleTwo, 0d);
-                Log("두 번째 손잡이 당기기 (H2-1 Use)");
+                SieveState = StarchSieveState.HandlesMoving;
+                BeginHandles();
+                Log("H1-1 USE + H2-1 USE 동시 작동");
                 return true;
             case StarchSieveState.ReadyToDry:
                 return TryPlaceTrayOnMaker(player);
             default:
                 return Fail("재배기 조작 실패: 현재 애니메이션이 끝나야 함");
         }
+    }
+    public bool TryTakeWaterBasket(PlayerInteractionController player)
+    {
+        if (!CanTakeWaterBasket) return Fail("물 바스켓 들기 실패: 건조 완료 후 아래 물 바스켓을 들어야 함");
+        if (!waterBasket.CarryItem.TryAttach(player)) return Fail("물 바스켓 들기 실패: 손 슬롯을 사용할 수 없음");
+        WaterBasketState = StarchWaterBasketState.Carried;
+        SieveState = StarchSieveState.DryBasketCarried;
+        Log("아래 물 바스켓 들기 완료. 물 바스켓을 든 채 손잡이에 [E]로 건조 틀 배출");
+        return true;
+    }
+
+    private bool IsHoldingWaterBasket(PlayerInteractionController player) =>
+        player && waterBasket && waterBasket.CarryItem.IsCarriedBy(player) &&
+        player.GetComponent<PlayerItemController>().SelectedSlot == PlayerItemSlot.Hands;
+
+    public bool TryReturnWaterBasket(PlayerInteractionController player)
+    {
+        if (SieveState != StarchSieveState.WaitingForBasketReturn || WaterBasketState != StarchWaterBasketState.Carried)
+            return Fail("물 바스켓 복귀 실패: 건조 틀 낙하가 먼저 완료되어야 함");
+        if (!IsHoldingWaterBasket(player) || !waterBasket.CarryItem.TryReturnHome(player))
+            return Fail("물 바스켓 복귀 실패: 자신의 물 바스켓을 손에 들어야 함");
+        // Restore only the water basket and handles; leave the finished tray and its starch intact.
+        makerAnimation.SetTime(StarchAnimationId.BasketDrop, 0d);
+        makerAnimation.SetTime(StarchAnimationId.BasketFill, 0d);
+        makerAnimation.SetTime(StarchAnimationId.HandleOne, 0d);
+        makerAnimation.SetTime(StarchAnimationId.HandleTwo, 0d);
+        WaterBasketState = StarchWaterBasketState.Docked;
+        SieveState = StarchSieveState.ReadyToPack;
+        waterBasket.RefreshCollider();
+        Log($"물 바스켓 상단 복귀 및 손잡이 초기 위치 복원. 전분 {RemainingPackCount}팩 유지. 맨손으로 포장 가능");
+        return true;
+    }
+    private void BeginHandles()
+    {
+        makerStartedAt = Now;
+        makerAnimation.SetTime(StarchAnimationId.HandleOne, 0d);
+        makerAnimation.SetTime(StarchAnimationId.HandleTwo, 0d);
     }
     public bool TryPlaceTrayOnMaker(PlayerInteractionController player)
     {
@@ -211,32 +270,80 @@ public sealed class PotatoStarchProcessor : MonoBehaviour
         Log($"재배기 위에 전분 틀 배치. 건조 시작={dryingSeconds:0.#}초");
         return true;
     }
-    public bool TryCollectProduct()
+    public bool TryStartPackaging(PlayerInteractionController player)
     {
-        if (TrayState != StarchTrayState.Dried) return Fail("전분 수거 실패: 건조가 완료되지 않음");
-        LastProducedPackCount = starchPacksPerCycle;
-        TotalProducedPackCount += starchPacksPerCycle;
-        ResetCycle();
-        Log($"전분 {starchPacksPerCycle}팩 획득(테스트). 실제 인벤토리 지급 없음");
-        Log("빈 전분 틀 아래 슬롯 복귀. 다음 생산 준비 완료");
+        if (TrayState != StarchTrayState.ReadyToPack || SieveState != StarchSieveState.ReadyToPack || RemainingPackCount <= 0)
+            return Fail("포장 실패: 건조 및 Dry Basket Drop 완료 후 한 팩씩 포장할 수 있음");
+        if (!StarchPackagingInventory.IsBareHanded(player)) return Fail("포장 실패: 맨손이어야 함");
+        var inventory = player.GetComponent<StarchPackagingInventory>();
+        if (!inventory || !inventory.TryBeginPackaging(this)) return Fail("포장 실패: 포장지가 없거나 이미 포장 중");
+        packagingInventory = inventory;
+        packagingPlayer = player;
+        packagingEndsAt = Now + packagingSeconds;
+        TrayState = StarchTrayState.Packing;
+        Log($"포장 시작. 포장지 1개 소비. {packagingSeconds:0.#}초 뒤 완료. 보유 포장지={inventory.WrapperCount}개");
         return true;
+    }
+    private bool CanContinuePackaging() => packagingPlayer && packagingPlayer.isActiveAndEnabled &&
+        packagingInventory && packagingInventory.PackagingOwner == this &&
+        StarchPackagingInventory.IsBareHanded(packagingPlayer);
+
+    private void CancelPackaging()
+    {
+        if (packagingInventory) packagingInventory.CancelPackaging(this);
+        packagingInventory = null;
+        packagingPlayer = null;
+        packagingEndsAt = 0d;
+        if (TrayState == StarchTrayState.Packing) TrayState = StarchTrayState.ReadyToPack;
+    }
+
+    private void EvaluatePackaging()
+    {
+        if (TrayState != StarchTrayState.Packing) return;
+        if (!CanContinuePackaging()) { CancelPackaging(); return; }
+        if (Now + 1e-8 < packagingEndsAt) return;
+        packagingInventory.CompletePackaging(this);
+        packagingInventory = null;
+        packagingPlayer = null;
+        packagingEndsAt = 0d;
+        LastProducedPackCount = 1;
+        TotalProducedPackCount++;
+        RemainingPackCount--;
+        makerAnimation.SetTime(StarchAnimationId.TrayFill,
+            MakerLength(StarchAnimationId.TrayFill) * RemainingPackCount / starchPacksPerCycle);
+        if (RemainingPackCount == 0)
+        {
+            ResetCycle();
+            Log("모든 전분 포장 완료. 빈 틀 및 설비 초기화. 다음 생산 준비 완료");
+        }
+        else
+        {
+            TrayState = StarchTrayState.ReadyToPack;
+            Log($"포장 완료. 남은 전분={RemainingPackCount}팩. 다음 [E] 입력 대기");
+        }
     }
     [ContextMenu("Debug/Reset Processing Cycle")]
     public void ResetCycle()
     {
+        CancelPackaging();
         blender?.CarryItem?.ResetHome();
         dryingTray?.CarryItem?.ResetHome();
+        waterBasket?.CarryItem?.ResetHome();
         blenderAnimation?.ResetPose();
         makerAnimation?.ResetPose();
         BlenderState = StarchBlenderState.DockedEmpty;
         SieveState = StarchSieveState.Filling;
         TrayState = StarchTrayState.InstalledEmpty;
+        WaterBasketState = StarchWaterBasketState.Docked;
+        waterBasket?.RefreshCollider();
         SieveFillCount = 0;
+        RemainingPackCount = 0;
         blenderStartedAt = makerStartedAt = dryingEndsAt = nextDryingLogAt = 0d;
     }
     private void EvaluateTimers()
     {
         EnsureInitialized();
+        EvaluatePackaging();
         // Automatic stages consume elapsed time in order; explicit input stages never auto-advance.
         for (int guard = 0; guard < 4; guard++)
         {
@@ -289,25 +396,48 @@ public sealed class PotatoStarchProcessor : MonoBehaviour
                     TrayState = StarchTrayState.InstalledWet;
                     Log("전분 배출과 아래 틀 채우기 완료");
                     goto Drying;
-                case StarchSieveState.HandleOneMoving: id = StarchAnimationId.HandleOne; break;
-                case StarchSieveState.HandleTwoMoving: id = StarchAnimationId.HandleTwo; break;
+                case StarchSieveState.HandlesMoving:
+                case StarchSieveState.DryHandlesMoving:
+                    makerAnimation.SetTime(StarchAnimationId.HandleOne, elapsed);
+                    makerAnimation.SetTime(StarchAnimationId.HandleTwo, elapsed);
+                    if (elapsed + 1e-8 < HandlesDuration) goto Drying;
+                    makerStartedAt += HandlesDuration;
+                    makerAnimation.SetTime(StarchAnimationId.HandleOne, 0d);
+                    makerAnimation.SetTime(StarchAnimationId.HandleTwo, 0d);
+                    bool dry = SieveState == StarchSieveState.DryHandlesMoving;
+                    if (dry)
+                    {
+                        // Rejoin the source skeleton at the identical upper pose, then let the
+                        // original imported drop curves bring the visible tray to the ground.
+                        makerAnimation.SetTime(StarchAnimationId.DryBasketDrop, 0d);
+                        dryingTray.CarryItem.ResetHome();
+                    }
+                    else makerAnimation.SetTime(StarchAnimationId.BasketDrop, 0d);
+                    SieveState = dry ? StarchSieveState.DryDropping : StarchSieveState.Dropping;
+                    Log(dry ? "두 손잡이 완료. Dry Basket Drop 시작" : "두 손잡이 완료. Water Basket Drop 시작");
+                    continue;
                 case StarchSieveState.Dropping: id = StarchAnimationId.BasketDrop; break;
+                case StarchSieveState.DryDropping: id = StarchAnimationId.DryBasketDrop; break;
                 default: goto Drying;
             }
             length = MakerLength(id);
             makerAnimation.SetTime(id, elapsed);
             if (elapsed + 1e-8 < length) break;
             makerStartedAt += length;
-            if (SieveState == StarchSieveState.HandleOneMoving) SieveState = StarchSieveState.HandleOneDone;
-            else if (SieveState == StarchSieveState.HandleTwoMoving)
+            if (SieveState == StarchSieveState.DryDropping)
             {
-                makerAnimation.SetTime(StarchAnimationId.HandleOne, 0d);
-                makerAnimation.SetTime(StarchAnimationId.HandleTwo, 0d);
-                makerAnimation.SetTime(StarchAnimationId.BasketDrop, 0d);
-                SieveState = StarchSieveState.Dropping;
-                Log("두 손잡이 완료. 손잡이 원위치 및 빨간 통 Drop 시작");
+                SieveState = StarchSieveState.WaitingForBasketReturn;
+                TrayState = StarchTrayState.ReadyToPack;
+                RemainingPackCount = starchPacksPerCycle;
+                Log($"Dry Basket Drop 완료. [E]로 물 바스켓을 상단에 복귀하세요. 전분={RemainingPackCount}팩 유지");
             }
-            else { SieveState = StarchSieveState.ReadyToDry; Log("Drop 완료. [E] 재배기 위 틀 배치 가능"); }
+            else
+            {
+                SieveState = StarchSieveState.ReadyToDry;
+                WaterBasketState = StarchWaterBasketState.Lowered;
+                waterBasket.RefreshCollider();
+                Log("Drop 완료. [E] 재배기 위 틀 배치 가능");
+            }
         }
         Drying:
         if (TrayState != StarchTrayState.Drying) return;
@@ -318,7 +448,7 @@ public sealed class PotatoStarchProcessor : MonoBehaviour
         }
         if (Now + 1e-8 < dryingEndsAt) return;
         TrayState = StarchTrayState.Dried;
-        Log("건조 완료. 전분 틀에서 [E]로 수거 가능");
+        Log("건조 완료. 아래 물 바스켓을 [E]로 든 뒤 손잡이를 조작하세요");
     }
     private void Log(string message) => Debug.Log(Prefix + message, this);
     private bool Fail(string message) { Debug.LogWarning(Prefix + message, this); return false; }

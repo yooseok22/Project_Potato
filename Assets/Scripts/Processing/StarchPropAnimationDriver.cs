@@ -4,7 +4,7 @@ using UnityEngine;
 public enum StarchAnimationId
 {
     BlenderOpen, BlenderClose, BlenderStart, BlenderWorking, BlenderEnd,
-    BasketFill, BasketWorking, TrayFill, HandleOne, HandleTwo, BasketDrop
+    BasketFill, BasketWorking, TrayFill, HandleOne, HandleTwo, BasketDrop, DryBasketDrop
 }
 
 /// <summary>Evaluates the imported transform curves independently, without looping or pose blending.</summary>
@@ -43,8 +43,8 @@ public sealed class StarchPropAnimationDriver : MonoBehaviour
 
     [SerializeField] private Animator sourceAnimator;
     [SerializeField] private ClipPose[] clips = Array.Empty<ClipPose>();
-    private readonly ClipPose[] heldClips = new ClipPose[7];
-    private readonly float[] heldTimes = new float[7];
+    private readonly ClipPose[] heldClips = new ClipPose[8];
+    private readonly float[] heldTimes = new float[8];
 
     public void Configure(Animator animator, ClipPose[] poses)
     {
@@ -76,6 +76,7 @@ public sealed class StarchPropAnimationDriver : MonoBehaviour
         StarchAnimationId.TrayFill => 3,
         StarchAnimationId.HandleOne => 4,
         StarchAnimationId.HandleTwo => 5,
+        StarchAnimationId.DryBasketDrop => 7,
         _ => 6
     };
 
@@ -101,7 +102,8 @@ public sealed class StarchPropAnimationDriver : MonoBehaviour
         {
             if (clip.id == StarchAnimationId.BlenderClose || clip.id == StarchAnimationId.BlenderWorking ||
                 clip.id == StarchAnimationId.BlenderEnd || clip.id == StarchAnimationId.BasketWorking) continue;
-            SetTime(clip.id, 0d);
+            // The dry-drop clip begins on the upper supports and ends in the lower slot.
+            SetTime(clip.id, clip.id == StarchAnimationId.DryBasketDrop ? clip.source.length : 0d);
         }
     }
 

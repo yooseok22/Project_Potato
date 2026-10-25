@@ -34,7 +34,8 @@ public enum GroundCellState : byte
     CoveredMidHidden = 41,   // GN F MN
     CoveredLowEarly = 42,    // GN F LE
     CoveredLowYield = 43,    // GN F LY
-    BoarDugField = 44        // GD F
+    BoarDugField = 44,       // GD F; any crop whose HP reaches zero
+    HarvestClearedField = 45 // N_015; crop discarded by excessive fork digging
 }
 
 public enum PotatoHarvestQuality : byte
@@ -53,6 +54,7 @@ public sealed partial class GroundGrid : MonoBehaviour
     private GroundCellState[,] cells;
     private byte[,] soilCoverLayers;
     private bool[,] watered;
+    private byte[,] exposureDepths;
     public event Action<Vector2Int> CellChanged;
     public float CellSize => Mathf.Max(0.01f, cellSize);
     public int Width => Mathf.Max(1, width);
@@ -64,6 +66,7 @@ public sealed partial class GroundGrid : MonoBehaviour
         cells = new GroundCellState[Width, Depth];
         soilCoverLayers = new byte[Width, Depth];
         watered = new bool[Width, Depth];
+        exposureDepths = new byte[Width, Depth];
     }
 
     public Vector2Int WorldToCell(Vector3 point) => new Vector2Int(
@@ -77,6 +80,7 @@ public sealed partial class GroundGrid : MonoBehaviour
     public GroundCellState GetCellState(Vector2Int cell) => ContainsCell(cell)
         ? cells[cell.x, cell.y] : GroundCellState.BasicSoil;
     public int GetSoilCoverLayers(Vector2Int cell) => ContainsCell(cell) ? soilCoverLayers[cell.x, cell.y] : 0;
+    public int GetExposureDepth(Vector2Int cell) => ContainsCell(cell) ? exposureDepths[cell.x, cell.y] : 0;
     public bool HasPotato(Vector2Int cell)
     {
         var state = GetCellState(cell);
@@ -98,12 +102,14 @@ public sealed partial class GroundGrid : MonoBehaviour
     }
     public bool CanUseHoePrimary(Vector2Int cell)
     {
-        return CanCreatePlantingHole(cell) || HasPotato(cell);
+        return CanCreatePlantingHole(cell) || HasPotato(cell) || GetCellState(cell) == GroundCellState.BoarDugField;
     }
 
     public bool CanCreatePlantingHole(Vector2Int cell)
     {
-        if (!ContainsCell(cell) || GetCellState(cell) != GroundCellState.FieldSoil) return false;
+        if (!ContainsCell(cell)) return false;
+        if (GetCellState(cell) == GroundCellState.HarvestClearedField) return true;
+        if (GetCellState(cell) != GroundCellState.FieldSoil) return false;
         for (int x = -1; x <= 1; x++)
             for (int y = -1; y <= 1; y++)
             {
@@ -122,6 +128,7 @@ public sealed partial class GroundGrid : MonoBehaviour
             case GroundCellState.BasicSoil:
                 return TrySetCellState(cell, GroundCellState.FieldSoil);
             case GroundCellState.FieldSoil:
+            case GroundCellState.HarvestClearedField:
                 return TrySetCellState(cell, GroundCellState.PlantingHole);
             default:
                 return false;
@@ -131,7 +138,9 @@ public sealed partial class GroundGrid : MonoBehaviour
     public bool TryUseHoePrimary(Vector2Int cell)
     {
         if (!CanUseHoePrimary(cell)) return false;
-        if (GetCellState(cell) == GroundCellState.FieldSoil)
+        if (GetCellState(cell) == GroundCellState.FieldSoil ||
+            GetCellState(cell) == GroundCellState.HarvestClearedField ||
+            GetCellState(cell) == GroundCellState.BoarDugField)
             return TrySetCellState(cell, GroundCellState.PlantingHole);
         if (soilCoverLayers[cell.x, cell.y] == byte.MaxValue) return false;
         soilCoverLayers[cell.x, cell.y]++;
@@ -212,17 +221,18 @@ public sealed partial class GroundGrid : MonoBehaviour
         switch (GetCellState(cell))
         {
             case GroundCellState.UncoveredCut:
-                next = UnityEngine.Random.value < 0.5f
+                next = GetExposureDepth(cell) == 1
                     ? GroundCellState.UncoveredHighYield : GroundCellState.UncoveredHighHidden;
                 break;
             case GroundCellState.UncoveredHighYield:
                 next = GroundCellState.UncoveredMidEarly;
                 break;
             case GroundCellState.UncoveredHighHidden:
-                next = UnityEngine.Random.value < 0.5f
+                next = GetExposureDepth(cell) <= 2
                     ? GroundCellState.UncoveredMidYield : GroundCellState.UncoveredMidHidden;
                 break;
             case GroundCellState.UncoveredMidYield:
+            case GroundCellState.UncoveredLowYield:
                 next = GroundCellState.UncoveredLowEarly;
                 break;
             case GroundCellState.UncoveredMidHidden:
@@ -230,21 +240,21 @@ public sealed partial class GroundGrid : MonoBehaviour
                 break;
             case GroundCellState.UncoveredMidEarly:
             case GroundCellState.UncoveredLowEarly:
-            case GroundCellState.UncoveredLowYield:
-                next = GroundCellState.PlantingHole;
+                next = GroundCellState.HarvestClearedField;
                 break;
             case GroundCellState.CoveredCut:
-                next = UnityEngine.Random.value < 0.5f
+                next = GetExposureDepth(cell) == 1
                     ? GroundCellState.CoveredHighYield : GroundCellState.CoveredHighHidden;
                 break;
             case GroundCellState.CoveredHighYield:
                 next = GroundCellState.CoveredMidEarly;
                 break;
             case GroundCellState.CoveredHighHidden:
-                next = UnityEngine.Random.value < 0.5f
+                next = GetExposureDepth(cell) <= 2
                     ? GroundCellState.CoveredMidYield : GroundCellState.CoveredMidHidden;
                 break;
             case GroundCellState.CoveredMidYield:
+            case GroundCellState.CoveredLowYield:
                 next = GroundCellState.CoveredLowEarly;
                 break;
             case GroundCellState.CoveredMidHidden:
@@ -252,8 +262,7 @@ public sealed partial class GroundGrid : MonoBehaviour
                 break;
             case GroundCellState.CoveredMidEarly:
             case GroundCellState.CoveredLowEarly:
-            case GroundCellState.CoveredLowYield:
-                next = GroundCellState.PlantingHole;
+                next = GroundCellState.HarvestClearedField;
                 break;
             default:
                 return false;
@@ -309,6 +318,9 @@ public sealed partial class GroundGrid : MonoBehaviour
         if (!ContainsCell(cell) || cells[cell.x, cell.y] == state) return false;
         GroundCellState previousState = cells[cell.x, cell.y];
         cells[cell.x, cell.y] = state;
+        if (!HasPotatoState(state)) exposureDepths[cell.x, cell.y] = 0;
+        else if (!HasPotatoState(previousState) || exposureDepths[cell.x, cell.y] == 0)
+            exposureDepths[cell.x, cell.y] = (byte)UnityEngine.Random.Range(1, 4);
         if (!HasPotatoState(state)) soilCoverLayers[cell.x, cell.y] = 0;
         if (!HasPotatoState(state)) watered[cell.x, cell.y] = false;
         CellChanged?.Invoke(cell);
@@ -357,7 +369,8 @@ public sealed partial class GroundGrid : MonoBehaviour
     }
 
     private static bool IsPreparedFarmState(GroundCellState state)
-        => state == GroundCellState.FieldSoil || state == GroundCellState.PlantingHole || HasPotatoState(state);
+        => state == GroundCellState.FieldSoil || state == GroundCellState.PlantingHole ||
+           state == GroundCellState.HarvestClearedField || HasPotatoState(state);
 
     private void LogFarmingStateChange(Vector2Int cell, GroundCellState previousState, GroundCellState nextState)
     {

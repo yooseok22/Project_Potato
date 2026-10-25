@@ -121,22 +121,22 @@ public static class SaveGameChecks
             Check(target.Data.items.Count == 2 && target.Data.items[0].quantity == 7 && target.Data.items[1].instanceId == "hoe-001", "stacks and unique items restored");
             Check(target.Data.items[1].propertiesJson.Contains("83"), "opaque item metadata restored");
             slots.Load(1);
-            Check(system.FarmingCount == 4 && target.Data.items.Count == 2, "repeated loads replace without duplication");
+            Check(system.FarmingCount == 3 && target.Data.items.Count == 2, "repeated loads replace without duplication; dead crop is cleared");
             slots.Load(2);
-            Check(system.FarmingCount == 3 && target.Data.items[0].quantity == 99, "second slot independent");
+            Check(system.FarmingCount == 2 && target.Data.items[0].quantity == 99, "second slot independent");
             slots.Load(1);
             var bad = JsonUtility.FromJson<FarmingSaveData>(farming.Capture());
             bad.grids[0].width++;
             Rejected(() => farming.PrepareRestore(1, JsonUtility.ToJson(bad)), "grid mismatch rejected before mutation");
             Rejected(() => farming.PrepareRestore(2, farming.Capture()), "future farming schema rejected");
-            Check(clock.ElapsedSeconds == 260 && system.FarmingCount == 4, "validation preserves current farm");
+            Check(clock.ElapsedSeconds == 260 && system.FarmingCount == 3, "validation preserves current farm");
             target.Reject = true;
             Rejected(() => slots.Load(2), "inventory adapter validates before farm mutation");
             Check(clock.ElapsedSeconds == 260 && target.Data.items[0].quantity == 7, "no partial load after validation failure");
             target.Reject = false;
             target.FailOnce = true;
             Rejected(() => slots.Load(2), "adapter apply failure reported");
-            Check(clock.ElapsedSeconds == 260 && target.Data.items[0].quantity == 7 && system.FarmingCount == 4, "apply failure rolls back farm and inventory");
+            Check(clock.ElapsedSeconds == 260 && target.Data.items[0].quantity == 7 && system.FarmingCount == 3, "apply failure rolls back farm and inventory");
             inventories.Unbind(target);
             slots.Load(2);
             var lateTarget = new InventoryTarget();
@@ -174,7 +174,8 @@ public static class SaveGameChecks
             system.RefreshGrowth();
             Check(tile.AgeSeconds == cutAge, "cut crop does not grow after load");
             Check(system.TryGetFarmingTile(grid, dry, out var dryTile) && !dryTile.IsWatered && dryTile.AgeSeconds == 0, "dry crop stays dry");
-            Check(system.TryGetFarmingTile(grid, dead, out var deadTile) && deadTile.IsDead, "dead crop preserved");
+            Check(!system.TryGetFarmingTile(grid, dead, out _) && grid.GetCellState(dead) == GroundCellState.BoarDugField,
+                "dead crop stays cleared and GD F tile is preserved");
             Check(grid.IsSoilCoveredPotato(growing), "covered crop continues with covered visual");
             Check(harvest.TryUsePotatoFork(grid, cut), "fork continues from saved cut state");
             if (!harvest.CanHarvest(grid, cut)) Check(harvest.TryUsePotatoFork(grid, cut), "fork continues through hidden branch");
@@ -192,7 +193,7 @@ public static class SaveGameChecks
             inventories = new InventorySaveSection();
             slots = NewService();
             slots.Load(2);
-            Check(system.FarmingCount == 4 && clock.ElapsedSeconds == 260 && Snapshot(grid) == expectedGrid, "fresh scene objects and service restore from disk");
+            Check(system.FarmingCount == 3 && clock.ElapsedSeconds == 260 && Snapshot(grid) == expectedGrid, "fresh scene objects and service restore from disk");
             var freshTarget = new InventoryTarget();
             inventories.Bind(freshTarget);
             Check(freshTarget.Data.items[0].quantity == 7, "fresh player adapter receives saved contents");

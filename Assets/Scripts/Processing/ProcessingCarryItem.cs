@@ -96,6 +96,7 @@ public sealed class ProcessingCarryItem : MonoBehaviour, IPlayerHeldItem
     public void ResetHome()
     {
         CaptureHome();
+        if (!carryRig) carryRig = GetComponent<ProcessingCarryRig>();
         if (currentItems) currentItems.TryReleaseFromHands(this);
         currentItems = null;
         RestoreHomeTransform();

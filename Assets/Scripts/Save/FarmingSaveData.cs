@@ -8,6 +8,7 @@ using UnityEngine;
     public int x, y;
     public GroundCellState state;
     public byte soilCoverLayers;
+    public byte exposureDepth;
     public bool watered;
 }
 
@@ -55,6 +56,7 @@ using UnityEngine;
     public int x, y;
     public bool cut, covered;
     public PotatoHarvestTiming timing;
+    public HarvestedPotatoCondition conditions;
 }
 
 [Serializable] public sealed class FarmHarvestData

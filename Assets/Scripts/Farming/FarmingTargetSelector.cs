@@ -28,6 +28,12 @@ public sealed class FarmingTargetSelector : MonoBehaviour
     {
         if (!farmingSystem) farmingSystem = FindAnyObjectByType<PotatoFarmingSystem>();
         harvestCoordinator = EnsureHarvestCoordinator(farmingSystem);
+        if (player && farmingSystem)
+        {
+            var trample = player.GetComponent<CropTrampleController>();
+            if (!trample) trample = player.gameObject.AddComponent<CropTrampleController>();
+            trample.Configure(farmingSystem);
+        }
 
         var sicklePreview = GetComponent<SickleHarvestPreviewController>();
         if (!sicklePreview) sicklePreview = gameObject.AddComponent<SickleHarvestPreviewController>();

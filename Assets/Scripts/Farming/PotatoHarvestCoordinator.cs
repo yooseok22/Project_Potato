@@ -26,13 +26,25 @@ public readonly struct PotatoHarvestResult
     public float Health { get; }
     public float MaxHealth { get; }
     public PotatoStatus Status { get; }
-    public bool HasAbnormalStatus => Status != PotatoStatus.None;
+    public bool HasAbnormalStatus => AbnormalCount > 0;
     public PotatoHarvestGrade[] Grades { get; }
+    public HarvestedPotatoCondition[] ItemConditions { get; }
+    public int AbnormalCount
+    {
+        get
+        {
+            int count = 0;
+            if (ItemConditions != null)
+                foreach (var condition in ItemConditions) if (condition != HarvestedPotatoCondition.None) count++;
+            return count;
+        }
+    }
     public int Count => Grades?.Length ?? 0;
 
     public PotatoHarvestResult(GroundGrid ground, Vector2Int cell, PotatoHarvestTiming timing,
         PotatoHarvestQuality quality, string stateCode, float health, float maxHealth,
-        PotatoHarvestGrade[] grades, PotatoStatus status = PotatoStatus.None)
+        PotatoHarvestGrade[] grades, PotatoStatus status = PotatoStatus.None,
+        HarvestedPotatoCondition[] itemConditions = null)
     {
         Ground = ground;
         Cell = cell;
@@ -43,6 +55,7 @@ public readonly struct PotatoHarvestResult
         MaxHealth = maxHealth;
         Status = status;
         Grades = grades ?? Array.Empty<PotatoHarvestGrade>();
+        ItemConditions = itemConditions ?? new HarvestedPotatoCondition[Grades.Length];
     }
 }
 
@@ -90,11 +103,18 @@ public static class PotatoHarvestRewardRules
         return PotatoHarvestGrade.OneStar;
     }
 
-    public static PotatoHarvestGrade[] Roll(float health)
+    /// <summary>Every integer quantity in the HP tier has equal probability.</summary>
+    public static int RollCount(float health)
     {
         GetCountRange(health, out int minimum, out int maximum);
-        int count = minimum == maximum ? minimum : UnityEngine.Random.Range(minimum, maximum + 1);
+        return minimum == maximum ? minimum : UnityEngine.Random.Range(minimum, maximum + 1);
+    }
+
+    public static PotatoHarvestGrade[] Roll(float health)
+    {
+        int count = RollCount(health);
         var grades = new PotatoHarvestGrade[count];
+        // Each potato gets its own grade roll; the quantity roll never chooses a batch-wide grade.
         for (int index = 0; index < count; index++)
             grades[index] = GradeAt(health, UnityEngine.Random.value);
         return grades;
@@ -109,21 +129,40 @@ public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
 
     private readonly Dictionary<(GroundGrid, Vector2Int), PotatoHarvestTiming> harvestTimings = new();
     private readonly HashSet<(GroundGrid, Vector2Int)> coveredCells = new();
+    private readonly Dictionary<(GroundGrid, Vector2Int), HarvestedPotatoCondition> harvestConditions = new();
     private PotatoFarmingSystem farmingSystem;
+
+    private void Awake() => Configure(GetComponent<PotatoFarmingSystem>());
 
     public void Configure(PotatoFarmingSystem system)
     {
         if (farmingSystem == system) return;
 
-        if (farmingSystem) farmingSystem.FarmingStageChanged -= OnFarmingStageChanged;
+        Unsubscribe();
         farmingSystem = system;
-        if (farmingSystem) farmingSystem.FarmingStageChanged += OnFarmingStageChanged;
+        if (farmingSystem)
+        {
+            farmingSystem.FarmingStageChanged += OnFarmingStageChanged;
+            farmingSystem.FarmingTileDied += OnCropDied;
+        }
     }
 
     public void ResetCell(GroundGrid ground, Vector2Int cell)
     {
         harvestTimings.Remove((ground, cell));
         coveredCells.Remove((ground, cell));
+        harvestConditions.Remove((ground, cell));
+    }
+
+    /// <summary>Connect condition sources such as sprouting without changing the growth/health owner's enum.</summary>
+    public bool TryAddHarvestCondition(GroundGrid ground, Vector2Int cell, HarvestedPotatoCondition condition)
+    {
+        if (condition == HarvestedPotatoCondition.None || (condition & ~PotatoHarvestConditionRules.Harvestable) != 0 ||
+            !farmingSystem || !farmingSystem.TryGetFarmingTile(ground, cell, out var crop) || crop.IsDead) return false;
+        harvestConditions.TryGetValue((ground, cell), out var previous);
+        if ((previous | condition) == previous) return false;
+        harvestConditions[(ground, cell)] = previous | condition;
+        return true;
     }
 
     public void MarkCovered(GroundGrid ground, Vector2Int cell)
@@ -138,8 +177,8 @@ public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
         if (!farmingSystem || !ground || !ground.CanUseSickle(cell)
             || harvestTimings.ContainsKey((ground, cell))) return false;
         if (!farmingSystem.TryGetFarmingTile(ground, cell, out var tile)) return false;
-        return tile.Stage == PotatoGrowthStage.WitheredSixLeaves
-            || tile.IsWatered && !tile.IsGrowthPaused && !tile.IsDead;
+        return !tile.IsDead && SickleHarvestPreviewController.IsHarvestStage(tile.Stage) &&
+            (tile.Stage == PotatoGrowthStage.WitheredSixLeaves || tile.IsWatered && !tile.IsGrowthPaused);
     }
 
     public bool TryCutForHarvest(GroundGrid ground, Vector2Int cell)
@@ -149,6 +188,7 @@ public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
         GroundCellState state = ground.GetCellState(cell);
         if (!TryGetHarvestTiming(state, out PotatoHarvestTiming timing, out bool covered)) return false;
         if (!farmingSystem.TryGetFarmingTile(ground, cell, out var tile)) return false;
+        float healthBeforeCut = tile.CurrentHealth;
         bool pausedByThisInteraction = tile.Stage != PotatoGrowthStage.WitheredSixLeaves;
         if (pausedByThisInteraction && !farmingSystem.TryPauseGrowth(ground, cell)) return false;
         if (!ground.TryUseSickle(cell))
@@ -165,17 +205,24 @@ public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
             : timing == PotatoHarvestTiming.Late ? LateHarvestDamage : 0f;
         if (damage > 0f && !farmingSystem.TryDamage(ground, cell, damage))
             Debug.LogWarning($"[Potato Harvest] Failed to apply {damage:0.#} harvest damage. Cell={cell}", this);
+        Debug.Log($"[Potato Harvest] 잎 베기 완료. Cell={cell}, " +
+            $"수확시기={SickleHarvestPreviewController.HarvestStateName(tile.Stage)}, 시기 피해={damage:0.#}, " +
+            $"HP={healthBeforeCut:0.#} → {tile.CurrentHealth:0.#}, 재배 상태={PotatoHarvestConditionRules.Describe(PotatoHarvestConditionRules.FromCrop(tile.Status))}", this);
         return true;
     }
 
     public bool TryUsePotatoFork(GroundGrid ground, Vector2Int cell)
     {
-        if (!ground || !ground.CanUsePotatoFork(cell)) return false;
+        if (!ground || !ground.CanUsePotatoFork(cell) || !farmingSystem ||
+            !harvestTimings.ContainsKey((ground, cell)) ||
+            !farmingSystem.TryGetFarmingTile(ground, cell, out var tile) || tile.IsDead) return false;
         GroundCellState state = ground.GetCellState(cell);
         bool discardsCrop = IsForkDiscardState(state);
         if (discardsCrop && (!farmingSystem || !farmingSystem.StopFarming(ground, cell))) return false;
         if (!ground.TryUsePotatoFork(cell)) return false;
         if (discardsCrop) ResetCell(ground, cell);
+        else if (ground.TryGetHarvestInfo(cell, out var quality, out _) && quality == PotatoHarvestQuality.Damaged)
+            farmingSystem.TryAddStatus(ground, cell, PotatoStatus.Injured);
         return true;
     }
 
@@ -183,7 +230,7 @@ public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
     {
         return farmingSystem && ground && harvestTimings.ContainsKey((ground, cell))
             && ground.CanHarvestPotato(cell)
-            && farmingSystem.TryGetFarmingTile(ground, cell, out _);
+            && farmingSystem.TryGetFarmingTile(ground, cell, out var tile) && !tile.IsDead;
     }
 
     public bool TryHarvest(GroundGrid ground, Vector2Int cell, out PotatoHarvestResult result)
@@ -204,9 +251,12 @@ public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
         }
 
         var grades = PotatoHarvestRewardRules.Roll(health);
+        PotatoStatus status = tile.Status | (quality == PotatoHarvestQuality.Damaged ? PotatoStatus.Injured : PotatoStatus.None);
+        harvestConditions.TryGetValue(key, out var additionalConditions);
+        var conditions = PotatoHarvestConditionRules.Roll(health, grades.Length,
+            PotatoHarvestConditionRules.FromCrop(status) | additionalConditions);
         result = new PotatoHarvestResult(ground, cell, timing, quality, stateCode,
-            health, maximumHealth, grades, tile.Status |
-                (quality == PotatoHarvestQuality.Damaged ? PotatoStatus.Injured : PotatoStatus.None));
+            health, maximumHealth, grades, status, conditions);
         ResetCell(ground, cell);
         LogResult(result);
         return true;
@@ -239,9 +289,25 @@ public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
 
     private void OnFarmingStageChanged(GroundGrid targetGround, Vector2Int cell, PotatoGrowthStage stage)
     {
+        // A deadline can kill a crop inside ForwardStage; its remaining visual update must not revive it.
+        if (targetGround && farmingSystem &&
+            (!farmingSystem.TryGetFarmingTile(targetGround, cell, out var crop) || crop.IsDead))
+        {
+            targetGround.TrySetCellState(cell, GroundCellState.BoarDugField);
+            return;
+        }
         if (!targetGround || !coveredCells.Contains((targetGround, cell))
             || !TryGetCoveredGrowthState(stage, out GroundCellState state)) return;
         targetGround.TrySetCellState(cell, state);
+    }
+
+    private void OnCropDied(GroundGrid ground, Vector2Int cell)
+    {
+        if (!ground) return;
+        ground.TrySetCellState(cell, GroundCellState.BoarDugField);
+        farmingSystem.StopFarming(ground, cell);
+        ResetCell(ground, cell);
+        Debug.Log($"[Potato Harvest] Ground='{ground.name}', Cell={cell}, HP=0, 획득=0개, 파헤쳐진 감자 (GD F). 괭이 좌클릭으로 복구", this);
     }
 
     private static bool TryGetCoveredGrowthState(PotatoGrowthStage stage, out GroundCellState state)
@@ -273,10 +339,8 @@ public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
     {
         return state == GroundCellState.UncoveredMidEarly
             || state == GroundCellState.UncoveredLowEarly
-            || state == GroundCellState.UncoveredLowYield
             || state == GroundCellState.CoveredMidEarly
-            || state == GroundCellState.CoveredLowEarly
-            || state == GroundCellState.CoveredLowYield;
+            || state == GroundCellState.CoveredLowEarly;
     }
 
     private void LogResult(PotatoHarvestResult result)
@@ -291,26 +355,39 @@ public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
         if (result.Count == 0)
         {
             Debug.Log(
-                $"[Potato Harvest] Cell={result.Cell}, 수확시기={timing}, 감자상태={quality}, " +
+                $"[Potato Harvest] Cell={result.Cell}, 수확시기={timing}, 굴착상태={quality}, " +
                 $"HP={result.Health:0.#}/{result.MaxHealth:0.#}, 수확개수=0, 결과=파헤쳐진 감자",
                 this);
             return;
         }
 
         var gradeNames = new string[result.Count];
+        var starCounts = new int[4];
         for (int index = 0; index < result.Count; index++)
-            gradeNames[index] = $"{(int)result.Grades[index]}성";
+        {
+            starCounts[(int)result.Grades[index]]++;
+            gradeNames[index] = $"{(int)result.Grades[index]}성 {PotatoHarvestConditionRules.Describe(result.ItemConditions[index])}";
+        }
         Debug.Log(
-            $"[Potato Harvest] Cell={result.Cell}, 수확시기={timing}, 감자상태={quality}, " +
+            $"[Potato Harvest] Cell={result.Cell}, 수확시기={timing}, 굴착상태={quality}, " +
             $"HP={result.Health:0.#}/{result.MaxHealth:0.#}, 수확개수={result.Count}, " +
-            $"등급=[{string.Join(", ", gradeNames)}]",
+            $"획득: 1성 {starCounts[1]}개, 2성 {starCounts[2]}개, 3성 {starCounts[3]}개, " +
+            $"정상 {result.Count - result.AbnormalCount}개, 상태 이상 {result.AbnormalCount}개, 개별=[{string.Join(", ", gradeNames)}]",
             this);
+    }
+
+    private void Unsubscribe()
+    {
+        if (!farmingSystem) return;
+        farmingSystem.FarmingStageChanged -= OnFarmingStageChanged;
+        farmingSystem.FarmingTileDied -= OnCropDied;
     }
 
     private void OnDestroy()
     {
-        if (farmingSystem) farmingSystem.FarmingStageChanged -= OnFarmingStageChanged;
+        Unsubscribe();
         harvestTimings.Clear();
         coveredCells.Clear();
+        harvestConditions.Clear();
     }
 }

@@ -42,6 +42,7 @@ public static class TileVisualResolver
     {
         var state = grid.GetCellState(cell);
         if (state == GroundCellState.BasicSoil) return new Visual { Kind = 0 };
+        if (state == GroundCellState.HarvestClearedField) return new Visual { Kind = 14 }; // Fixed N_015.
         if (state != GroundCellState.FieldSoil)
             return new Visual { Kind = (int)state };
 
