@@ -39,6 +39,7 @@ public sealed class PlayerItemController : MonoBehaviour
 
     private FirstPersonPlayerController player;
     private PlayerActionBlocker blocker;
+    private PlayerInteractionController interaction;
     private bool aimingThrow;
 
     public int SelectedIndex { get; private set; }
@@ -55,6 +56,7 @@ public sealed class PlayerItemController : MonoBehaviour
     {
         player = GetComponent<FirstPersonPlayerController>();
         blocker = GetComponent<PlayerActionBlocker>();
+        interaction = GetComponent<PlayerInteractionController>();
         if (slotItems == null || slotItems.Length != 5) Array.Resize(ref slotItems, 5);
     }
 
@@ -73,8 +75,9 @@ public sealed class PlayerItemController : MonoBehaviour
 
         if (player.HasGameplayFocus && keyboard != null && !aimingThrow)
         {
-            if (keyboard.digit1Key.wasPressedThisFrame) SelectSlot(PlayerItemSlot.Hands);
-            else if (keyboard.digit2Key.wasPressedThisFrame) SelectSlot(PlayerItemSlot.Hoe);
+            bool packingSelection = interaction && interaction.ConsumesPackingSelectionInput;
+            if (!packingSelection && keyboard.digit1Key.wasPressedThisFrame) SelectSlot(PlayerItemSlot.Hands);
+            else if (!packingSelection && keyboard.digit2Key.wasPressedThisFrame) SelectSlot(PlayerItemSlot.Hoe);
             else if (keyboard.digit3Key.wasPressedThisFrame) SelectSlot(PlayerItemSlot.WateringCan);
             else if (keyboard.digit4Key.wasPressedThisFrame) SelectSlot(PlayerItemSlot.Sickle);
             else if (keyboard.digit5Key.wasPressedThisFrame) SelectSlot(PlayerItemSlot.PotatoFork);

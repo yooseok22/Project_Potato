@@ -17,6 +17,7 @@ public interface IInteractionHighlight
 }
 
 [RequireComponent(typeof(PlayerActionBlocker), typeof(FirstPersonPlayerController))]
+[DefaultExecutionOrder(-50)]
 public sealed class PlayerInteractionController : MonoBehaviour
 {
     [SerializeField] private Camera aimCamera;
@@ -34,6 +35,8 @@ public sealed class PlayerInteractionController : MonoBehaviour
     public float HoldProgress => current != null && current.RequiresHold
         ? Mathf.Clamp01(holdTime / Mathf.Max(0.01f, current.HoldDuration)) : 0f;
     public bool IsHoldingInteraction { get; private set; }
+    public BoxPackingContent SelectedPackingContent { get; private set; }
+    public bool ConsumesPackingSelectionInput => current is PotatoPackingBox;
     public event Action TargetChanged;
     public event Action HoldProgressChanged;
 
@@ -50,6 +53,14 @@ public sealed class PlayerInteractionController : MonoBehaviour
         RefreshTarget();
 
         var keyboard = Keyboard.current;
+        if (player.CanUseGameplayInput && keyboard != null)
+        {
+            if (keyboard.digit1Key.wasPressedThisFrame || keyboard.numpad1Key.wasPressedThisFrame)
+                SelectPackingContent(BoxPackingContent.Potato);
+            else if (keyboard.digit2Key.wasPressedThisFrame || keyboard.numpad2Key.wasPressedThisFrame)
+                SelectPackingContent(BoxPackingContent.Starch);
+        }
+        if (current is PotatoPackingBox box) box.SetPreviewSelection(SelectedPackingContent);
         if (!player.CanUseGameplayInput || keyboard == null || current == null || !current.CanInteract(this))
         {
             CancelHold();
@@ -70,6 +81,14 @@ public sealed class PlayerInteractionController : MonoBehaviour
         var completed = current;
         CancelHold();
         if (completed.CanInteract(this)) completed.Interact(this);
+    }
+
+    public void SelectPackingContent(BoxPackingContent content)
+    {
+        if (content != BoxPackingContent.None && content != BoxPackingContent.Potato && content != BoxPackingContent.Starch)
+            throw new ArgumentOutOfRangeException(nameof(content));
+        SelectedPackingContent = content;
+        if (current is PotatoPackingBox box) box.SetPreviewSelection(content);
     }
 
     private void RefreshTarget()
