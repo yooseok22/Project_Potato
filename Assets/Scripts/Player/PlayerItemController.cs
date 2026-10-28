@@ -40,6 +40,7 @@ public sealed class PlayerItemController : MonoBehaviour
     private FirstPersonPlayerController player;
     private PlayerActionBlocker blocker;
     private bool aimingThrow;
+    private AutomationPlayerController automation;
 
     public int SelectedIndex { get; private set; }
     public PlayerItemSlot SelectedSlot => (PlayerItemSlot)SelectedIndex;
@@ -68,6 +69,8 @@ public sealed class PlayerItemController : MonoBehaviour
     private void Update()
     {
         if (!player.IsLocallyControlled || !player.CanUseItemInput) return;
+        if (!automation) automation = GetComponent<AutomationPlayerController>();
+        if (automation && automation.ConsumesGameplayActions) return;
         var mouse = Mouse.current;
         var keyboard = Keyboard.current;
 

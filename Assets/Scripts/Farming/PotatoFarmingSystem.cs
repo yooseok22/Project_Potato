@@ -170,15 +170,23 @@ public sealed partial class PotatoFarmingSystem : MonoBehaviour
     public bool TryGetFarmingTile(Vector2Int cell, out FarmingTile tile)
         => TryGetFarmingTile(ground, cell, out tile);
 
+    /// <summary>Returns whether the crop registered at this coordinate has mulching film.</summary>
+    public bool HasMulchingFilm(Vector2Int cell) => HasMulchingFilm(ground, cell);
+
+    public bool HasMulchingFilm(GroundGrid targetGround, Vector2Int cell)
+        => targetGround && TryGetFarmingTile(targetGround, cell, out var tile) &&
+            tile.IsMulchingFilmApplied;
+
     public bool TryApplyMulchingFilm(Vector2Int cell) => TryApplyMulchingFilm(ground, cell);
 
-    /// <summary>Call after film application succeeds. Inventory and player interaction belong to the caller.
-    /// Film prevents exposure for this crop's lifetime; it does not cure an existing Green status.</summary>
+    /// <summary>Call after the film interaction succeeds. Inventory and input handling belong to the caller.
+    /// Film can only be installed during SoilMound or Sprout, before soil covering becomes available.
+    /// It replaces soil covering for this crop's lifetime and does not cure an existing Green status.</summary>
     public bool TryApplyMulchingFilm(GroundGrid targetGround, Vector2Int cell)
     {
         if (!targetGround || !TryGetFarmingTile(targetGround, cell, out var tile) ||
             tile.IsDead || tile.IsGrowthPaused || tile.IsMulchingFilmApplied ||
-            tile.Stage == PotatoGrowthStage.WitheredSixLeaves) return false;
+            tile.Stage > PotatoGrowthStage.Sprout) return false;
         tile.IsMulchingFilmApplied = true;
         ApplyMulchingVisual(tile, tile.Stage);
         return true;

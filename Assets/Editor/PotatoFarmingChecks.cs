@@ -30,6 +30,7 @@ public static class PotatoFarmingChecks
             system.TryWater(grid, cell);
             Check(system.TryApplyMulchingFilm(grid, cell) && !system.TryApplyMulchingFilm(grid, cell),
                 "film applied once before exposure");
+            Check(system.HasMulchingFilm(grid, cell), "film can be queried by ground and cell");
             clock.AdvanceBy(80);
             Check(grid.GetCellState(cell) == GroundCellState.SoilCoveredFirst && !grid.CanCoverPotato(cell),
                 "two-leaf potato stays hidden without cover interaction");
@@ -50,6 +51,11 @@ public static class PotatoFarmingChecks
             system.TryStartFarming(grid, cell, clock);
             system.TryGetFarmingTile(grid, cell, out var replanted);
             Check(!replanted.IsMulchingFilmApplied, "new planting does not inherit film");
+            system.TryWater(grid, cell);
+            clock.AdvanceBy(80);
+            Check(replanted.Stage == PotatoGrowthStage.TwoLargeLeaves &&
+                !system.TryApplyMulchingFilm(grid, cell) && !system.HasMulchingFilm(grid, cell),
+                "film is rejected after the early growth stages");
             Debug.Log("Mulching film checks passed.");
         }
         finally { EditorSceneManager.ClosePreviewScene(scene); }

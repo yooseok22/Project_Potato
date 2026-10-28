@@ -20,6 +20,7 @@ public sealed class PlayerToolController : MonoBehaviour
     private GameObject[] toolInstances;
     private int water;
     private WateringInteractionView wateringView;
+    private AutomationPlayerController automation;
 
     public int Water => water;
     public int WaterCapacity => wateringCanCapacity;
@@ -45,6 +46,12 @@ public sealed class PlayerToolController : MonoBehaviour
 
     private void Update()
     {
+        if (!automation) automation = GetComponent<AutomationPlayerController>();
+        if (automation && automation.ConsumesGameplayActions)
+        {
+            if (wateringView) wateringView.SetVisible(false);
+            return;
+        }
         UpdateFarmingPrompt();
         if (!player.CanUseGameplayInput || items.IsAimingThrow || player.CursorCapturedThisFrame) return;
         var keyboard = Keyboard.current;

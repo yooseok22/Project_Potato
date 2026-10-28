@@ -29,6 +29,7 @@ public sealed class PlayerInteractionController : MonoBehaviour
     private IInteractionHighlight highlighter;
     private float holdTime;
     private RaycastHit[] targetHits = new RaycastHit[16];
+    private AutomationPlayerController automation;
 
     public string CurrentPrompt => current?.Prompt ?? string.Empty;
     public float HoldProgress => current != null && current.RequiresHold
@@ -46,6 +47,14 @@ public sealed class PlayerInteractionController : MonoBehaviour
     private void Update()
     {
         if (!player.IsLocallyControlled) return;
+        if (!automation) automation = GetComponent<AutomationPlayerController>();
+        if (automation && automation.ConsumesGameplayActions)
+        {
+            CancelHold();
+            highlighter?.SetHighlighted(false);
+            if (current != null) { current = null; highlighter = null; TargetChanged?.Invoke(); }
+            return;
+        }
         if (!aimCamera) aimCamera = player.ViewCamera ? player.ViewCamera.GetComponent<Camera>() : Camera.main;
         RefreshTarget();
 
