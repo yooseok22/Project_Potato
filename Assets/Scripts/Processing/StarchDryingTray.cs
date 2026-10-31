@@ -14,15 +14,14 @@ public sealed class StarchDryingTray : MonoBehaviour, IPlayerInteractable
         StarchTrayState.InstalledEmpty => "건조 틀 비어 있음",
         StarchTrayState.InstalledWet => "[E] 건조 틀 꺼내기",
         StarchTrayState.Drying => $"건조 중 {processor.DryingSecondsRemaining}초",
-        StarchTrayState.Dried => processor.SieveState switch
+        StarchTrayState.EmptyOnTop => processor.SieveState switch
         {
-            StarchSieveState.Drying => "아래 물 바스켓을 [E]로 먼저 들어 올리세요",
-            StarchSieveState.DryBasketCarried => "물 바스켓을 든 채 손잡이에 [E]",
-            _ => "건조 틀 내려오는 중",
+            StarchSieveState.ReadyToPack => "전분 소진 · 아래 바스켓을 들고 가공기에 [E]",
+            StarchSieveState.WaitingForBasketReturn => "가공기에 다시 [E]로 설비 초기화",
+            StarchSieveState.DryBasketCarried => "바스켓을 든 채 가공기에 [E]로 빈 틀 내리기",
+            _ => "빈 전분 틀 내려오는 중",
         },
-        StarchTrayState.ReadyToPack => processor.SieveState == StarchSieveState.WaitingForBasketReturn
-            ? "가공기에 [E]로 물 바스켓을 먼저 복귀하세요"
-            : $"[E] 맨손으로 포장 ({processor.PackagingDuration:0.#}초 · 포장지 1개 필요 · 남은 {processor.RemainingPackCount}팩)",
+        StarchTrayState.ReadyToPack => $"[E] 포장지를 들고 포장 ({processor.PackagingDuration:0.#}초 · 남은 {processor.RemainingPackCount}팩)",
         StarchTrayState.Packing => $"포장 중 {processor.PackagingSecondsRemaining:0.0}초",
         _ => string.Empty
     };
