@@ -1,0 +1,40 @@
+# 바구니와 창고 선반
+
+연결 씬: `Assets/Scenes/Test/YoungSeok_TestScene.unity`
+
+## 조작
+
+- 수확한 감자는 플레이어 바구니에 들어간다. 종류와 스택 수에 관계없이 감자 개수의 합이 최대 10개다.
+- `I`를 누르면 현재 바구니 총 수량과 일반/1성/2성/3성/상태이상 감자별 수량을 Console에 출력한다. HUD 바구니 아래에도 현재 수량을 표시한다.
+- `FBX_Warehouse` 내부에서 선반을 조준하고 가까이서 `E`를 누르면 바구니 감자를 해당 선반에 보관한다. 기존 상호작용 거리 3m를 사용한다.
+- 선반을 조준하는 동안 12m 이내에서 현재 수량/50과 보관 안내를 계속 표시한다. 빈 선반, 가득 찬 선반도 표시하고 시선을 떼면 숨긴다.
+- 선반은 001~030의 30개이며 각각 최대 50개, 전체 최대 1,500개다. 선반이 48개이고 바구니가 10개이면 2개만 이동하고 8개는 바구니에 남는다. 이동 순서는 바구니에 먼저 들어온 스택부터다.
+- 바구니에는 해당 작물의 최대 수확량만큼 빈자리가 있어야 수확할 수 있다. 예를 들어 최대 3개 수확 가능한 작물에는 빈자리 3개를 먼저 확보한다. 공간이 부족하면 작물을 그대로 유지한다.
+
+## 감자 분류
+
+`PotatoInventory`는 아이템 ID `potato`, 수량, 별 등급, 상태 플래그를 저장한다. 일반 감자는 별 등급 없음/상태 없음으로 구분한다. 벌레 먹음, 녹색, 상처 입음, 싹남 중 하나라도 붙으면 별 등급은 제거하고 상태이상 감자로만 분류한다. 복수 상태는 모두 보존하지만 감자 수량은 중복 계산하지 않는다. 동일 등급과 동일 상태 조합만 같은 스택으로 합친다.
+
+수확 총 개수와 상태이상 감자 개수의 기존 체력별 확률을 사용한다. 상세 표는 `PotatoHarvestRevision.md`에 있다. 썩음 상태도 보관 데이터로 표현할 수 있지만 수확 시 썩음을 생성하거나 부패 타이머를 추가하지 않는다.
+
+## 로컬 저장 연결
+
+친구분의 `SaveGameController`, `SaveSlotService`, `InventorySaveSection`, `FarmingSaveSection`과 성장·체력 원본은 수정하지 않았다. `PotatoInventory`가 기존 `IInventorySaveTarget`을 구현하고 `PotatoStorageSaveAdapter`가 등록한다.
+
+- 바구니 소유자 ID: `basket:local-player`.
+- 선반 소유자 ID: `shelf:{창고 영구 GUID}:{선반 ID}`. 창고 GUID와 선반 ID는 씬에 저장되므로 실행마다 바뀌지 않는다.
+- 기존 `InventoryItemData.propertiesJson`에 `grade`와 `conditions`를 저장한다. 상태이상이 붙은 항목은 불러올 때도 무등급으로 정리한다.
+- 기본 슬롯은 1번이다. Play 시작 시 파일이 있으면 농장·바구니·선반을 함께 불러온다. Inspector의 Save/Load로 슬롯 2를 선택하면 이후 자동 저장도 해당 슬롯을 따른다. 다음 실행의 시작 슬롯은 어댑터 Inspector의 `Active Slot` 설정을 따른다.
+- 수확 성공 또는 선반 이동 후 같은 슬롯에 한 번 저장한다. 저장 실패 시 바구니와 선반, 또는 바구니와 수확 전 작물을 복구한다. 반복 불러오기는 기존 내용을 교체한다.
+- 기존 파일을 불러올 수 없으면 오류를 출력하고 감자 변경 동작을 중지한다. 기존 로컬 저장 시스템의 정책대로 오프라인 세션에서 동작한다.
+- 빈 선반도 저장 대상이다. `PotatoStorageSaveAdapter`의 `Print All Warehouse Potatoes` 메뉴 또는 `DescribeWarehouse()`로 모든 선반의 종류별 수량을 조회할 수 있다.
+
+## 씬과 코드 연결
+
+`Tools > Project Potato > Connect Basket and Warehouse`는 Player 프리팹, 현재 씬 플레이어, 창고 영역, 30개 선반, UI와 저장 어댑터를 연결한다. 이미 연결된 창고 ID와 선반 ID를 유지한다. 반전된 FBX 선반에는 양수 월드 스케일의 자식 hitbox를 사용하며, 창고의 MeshCollider는 모델의 실제 입구와 바닥을 따른다.
+
+기존 게임플레이 코드의 연결 변경은 `FarmingTargetSelector`의 수확 결과 지급, `PlayerInteractionController`의 현재 대상 조회, `PlayerToolController`의 E키 중복 실행 방지다. 새로 추가한 실행 코드는 `Assets/Scripts/Player/`의 바구니·보관함·저장 어댑터·선반 UI 스크립트들이다.
+
+## 검증
+
+`Tools > Project Potato > Validate Basket and Warehouse`의 28개 검증은 임시 경로에서 혼합 감자, 개수 제한, 부분 이동, 슬롯 분리, 디스크 저장/복원, 지연 등록, 실패 복구와 수확물 중복 지급 방지를 검사한다. 실제 플레이 모드에서는 I키 Console 출력, 양쪽 선반의 E키 부분 이동, 반복 E 입력, 0/50 및 50/50 표시, 시선 이탈 시 숨김, 창고 밖 보관 차단, 실제 작물 수확 지급, 30개 선반 데이터 저장과 어댑터 초기화 시 자동 복원을 확인했다. 실제 플레이어 저장 파일에 테스트 데이터를 쓰지 않고 프로젝트의 별도 Temp 경로를 사용했다.

@@ -106,9 +106,11 @@ public static class YoungSeokPotatoHarvestChecks
                 && harvestResult.Quality == PotatoHarvestQuality.Normal
                 && harvestResult.Health == 70f
                 && harvestResult.Count == 1
-                && harvestResult.Grades[0] == PotatoHarvestGrade.OneStar
+                && harvestResult.Grades[0] == PotatoHarvestGrade.None
+                && harvestResult.AbnormalCount == 1
+                && (harvestResult.ItemConditions[0] & HarvestedPotatoCondition.Green) != 0
                 && ground.GetCellState(harvestCell) == GroundCellState.HarvestClearedField,
-                "E harvest returns HP, reward and N_015");
+                "E harvest returns HP, an exclusively abnormal green reward and N_015");
             Check(!coordinator.TryHarvest(ground, harvestCell, out _),
                 "completed crop cannot pay a second reward");
 

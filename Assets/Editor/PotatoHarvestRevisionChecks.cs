@@ -243,6 +243,48 @@ public static class PotatoHarvestRevisionChecks
                     statuses.All(s => s == HarvestedPotatoCondition.None || s == combined), "per-potato conditions preserve crop flags on selected subset");
             }
 
+            // Each condition overrides every star grade, and combined conditions still describe one potato.
+            var rewardGrades = new[] { PotatoHarvestGrade.OneStar, PotatoHarvestGrade.TwoStar, PotatoHarvestGrade.ThreeStar };
+            foreach (var condition in new[] { HarvestedPotatoCondition.BugEaten, HarvestedPotatoCondition.Green,
+                HarvestedPotatoCondition.Injured, HarvestedPotatoCondition.Sprouted, PotatoHarvestConditionRules.Harvestable })
+            foreach (var grade in rewardGrades)
+            {
+                var abnormal = new PotatoHarvestResult(grid, default, PotatoHarvestTiming.Optimal,
+                    PotatoHarvestQuality.Normal, "test", 100f, 100f, new[] { grade },
+                    itemConditions: new[] { condition });
+                Check(abnormal.Count == 1 && abnormal.AbnormalCount == 1 && abnormal.HasAbnormalStatus &&
+                    abnormal.Grades[0] == PotatoHarvestGrade.None && abnormal.ItemConditions[0] == condition,
+                    condition + " overrides " + grade + " without losing condition flags or duplicating the potato");
+            }
+            var mixed = new PotatoHarvestResult(grid, default, PotatoHarvestTiming.Optimal,
+                PotatoHarvestQuality.Normal, "test", 100f, 100f,
+                new[] { PotatoHarvestGrade.OneStar, PotatoHarvestGrade.TwoStar, PotatoHarvestGrade.ThreeStar,
+                    PotatoHarvestGrade.OneStar, PotatoHarvestGrade.TwoStar, PotatoHarvestGrade.ThreeStar,
+                    PotatoHarvestGrade.ThreeStar },
+                itemConditions: new[] { HarvestedPotatoCondition.None, HarvestedPotatoCondition.None,
+                    HarvestedPotatoCondition.None, HarvestedPotatoCondition.BugEaten, HarvestedPotatoCondition.Green,
+                    HarvestedPotatoCondition.Injured, HarvestedPotatoCondition.Sprouted | HarvestedPotatoCondition.Green });
+            Check(mixed.Count == 7 && mixed.AbnormalCount == 4 &&
+                rewardGrades.All(g => mixed.Grades.Count(actual => actual == g) == 1) &&
+                mixed.Grades.Count(g => g != PotatoHarvestGrade.None) + mixed.AbnormalCount == mixed.Count,
+                "mixed harvest has disjoint star categories and abnormal category with a conserved total");
+            var normalOnly = new PotatoHarvestResult(grid, default, PotatoHarvestTiming.Optimal,
+                PotatoHarvestQuality.Normal, "test", 100f, 100f, rewardGrades);
+            Check(normalOnly.Grades.SequenceEqual(rewardGrades) && normalOnly.AbnormalCount == 0 && !normalOnly.HasAbnormalStatus,
+                "normal rewards retain their original star grades");
+            string classificationLog = null;
+            void CaptureClassificationLog(string message, string stackTrace, LogType type)
+            {
+                if (message.StartsWith("[Potato Harvest]")) classificationLog = message;
+            }
+            Application.logMessageReceived += CaptureClassificationLog;
+            try { typeof(PotatoHarvestCoordinator).GetMethod("LogResult", PrivateInstance).Invoke(harvest, new object[] { mixed }); }
+            finally { Application.logMessageReceived -= CaptureClassificationLog; }
+            Check(classificationLog != null && classificationLog.Contains("수확개수=7") &&
+                classificationLog.Contains("1성 1개, 2성 1개, 3성 1개") && classificationLog.Contains("상태이상 4개") &&
+                classificationLog.Contains("상태이상 감자 (녹색+싹난)") && !classificationLog.Contains("0성"),
+                "console reports abnormal rewards without star labels or duplicate star counts");
+
             // Use the production save section to preserve cut age, injury, health and dig depth together.
             var savedCell = new Vector2Int(12, 2);
             Plant(savedCell);
@@ -265,6 +307,9 @@ public static class PotatoHarvestRevisionChecks
             Check(harvest.TryHarvest(grid, savedCell, out var final) && final.Count >= 2 && final.Count <= 3 && final.AbnormalCount >= 1 &&
                 final.HasAbnormalStatus && final.ItemConditions.Any(s => s == HarvestedPotatoCondition.Sprouted),
                 "saved sprouted condition reaches individual harvest rewards without inventing a sprouting timer");
+            Check(Enumerable.Range(0, final.Count).All(i =>
+                (final.Grades[i] == PotatoHarvestGrade.None) == (final.ItemConditions[i] != HarvestedPotatoCondition.None)),
+                "real harvest after save/load classifies every potato as either starred or abnormal");
             Debug.Log($"[PotatoHarvestRevisionChecks] PASS: {checks} checks. Fixed dig depths, cut timing, repeated trampling, zero-HP recovery, N_015 discard, per-item conditions and save/load.");
         }
         finally

@@ -33,6 +33,8 @@ public sealed class PlayerInteractionController : MonoBehaviour
     private AutomationPlayerController automation;
 
     public string CurrentPrompt => current?.Prompt ?? string.Empty;
+    public IPlayerInteractable CurrentTarget => current;
+    public bool HasInteractionTarget => current != null;
     public float HoldProgress => current != null && current.RequiresHold
         ? Mathf.Clamp01(holdTime / Mathf.Max(0.01f, current.HoldDuration)) : 0f;
     public bool IsHoldingInteraction { get; private set; }
