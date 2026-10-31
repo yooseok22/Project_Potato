@@ -35,7 +35,7 @@ public enum GroundCellState : byte
     CoveredLowEarly = 42,    // GN F LE
     CoveredLowYield = 43,    // GN F LY
     BoarDugField = 44,       // GD F; any crop whose HP reaches zero
-    HarvestClearedField = 45 // N_015; crop discarded by excessive fork digging
+    HarvestClearedField = 45 // N_015; harvested or discarded crop
 }
 
 public enum PotatoHarvestQuality : byte
@@ -289,7 +289,7 @@ public sealed partial class GroundGrid : MonoBehaviour
         if (!TryGetHarvestInfo(cell, out quality, out stateCode))
             return false;
 
-        if (!TrySetCellState(cell, GroundCellState.PlantingHole)) return false;
+        if (!TrySetCellState(cell, GroundCellState.HarvestClearedField)) return false;
         string description = quality == PotatoHarvestQuality.Normal ? "정상적인 감자" : "손상된 감자";
         Debug.Log($"[Potato Harvest] {description}를 수확했습니다. (상태: {stateCode}, Cell={cell})", this);
         return true;

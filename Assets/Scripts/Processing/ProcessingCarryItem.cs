@@ -135,7 +135,11 @@ public sealed class ProcessingCarryItem : MonoBehaviour, IPlayerHeldItem
 
     private void ClearHandSocket()
     {
-        if (handSocket) Destroy(handSocket.gameObject);
+        if (handSocket)
+        {
+            if (Application.isPlaying) Destroy(handSocket.gameObject);
+            else DestroyImmediate(handSocket.gameObject);
+        }
         handSocket = handAnchor = viewTransform = null;
     }
 

@@ -128,8 +128,12 @@ public static class PotatoHarvestRevisionChecks
                 Check(crop.CurrentHealth == pair.health, "optimal/late timing damage");
                 SetDepth(cell, 1);
                 Check(harvest.TryUsePotatoFork(grid, cell) && harvest.TryHarvest(grid, cell, out var result), "E harvest exposed potato");
-                Check(grid.GetCellState(cell) == GroundCellState.PlantingHole && !harvest.TryHarvest(grid, cell, out _),
-                    "E harvest returns G_001 and never duplicates");
+                Check(grid.GetCellState(cell) == GroundCellState.HarvestClearedField && !harvest.TryHarvest(grid, cell, out _),
+                    "E harvest returns N_015 and never duplicates");
+                Check(TileVisualResolver.Resolve(grid, cell).Kind == 14 && !farm.TryGetFarmingTile(grid, cell, out _),
+                    "harvest shows fixed N_015 and clears the crop");
+                Check(grid.TryUseHoePrimary(cell) && grid.GetCellState(cell) == GroundCellState.PlantingHole,
+                    "harvested N_015 can be tilled again");
             }
 
             var stepped = new Vector2Int(10, 2);

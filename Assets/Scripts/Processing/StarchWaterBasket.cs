@@ -17,7 +17,7 @@ public sealed class StarchWaterBasket : MonoBehaviour, IPlayerInteractable
     {
         StarchWaterBasketState.Docked => station ? station.Prompt : string.Empty,
         StarchWaterBasketState.Lowered => processor.CanTakeWaterBasket
-            ? "[E] 물 바스켓 들기" : "건조 완료 후 물 바스켓을 들어 올리세요",
+            ? "[E] 물 바스켓 들기" : "위 틀의 전분을 모두 포장한 뒤 바스켓을 드세요",
         _ => "물 바스켓을 든 채 손잡이에 [E]",
     };
 

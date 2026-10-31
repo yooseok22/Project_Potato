@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
@@ -271,10 +271,11 @@ public static class PotatoStarchProcessingChecks
             var waterRenderer = maker.transform.Find("FBX_Starch Water Basket").GetComponent<SkinnedMeshRenderer>();
             var initialWaterVertices = WorldVertices(waterRenderer);
             var held = Child(root.transform, "HeldObject", false).gameObject.AddComponent<ProcessingCarryItem>();
-            var bundle = Child(root.transform, "PackagingBundle", false).gameObject.AddComponent<StarchPackagingBundle>();
-            bundle.Interact(player);
-            var inventory = player.GetComponent<StarchPackagingInventory>();
-            Check(inventory.WrapperCount == 1 && !items.HasItem(PlayerItemSlot.Hands), "wrapper pickup is a count, never a hand item");
+            var packagingProp = UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Fbx/Food Processing/Potato Millionaire Starch Pack.fbx"), root.transform);
+            var bundle = packagingProp.transform.Find("FBX_Starch Packaging Bundle").gameObject.AddComponent<StarchPackagingBundle>();
+            var inventory = playerObject.AddComponent<StarchPackagingInventory>();
+            Check(inventory.WrapperCount == 0 && !items.HasItem(PlayerItemSlot.Hands), "initially no wrapper");
             Check(!p.TryTakeWaterBasket(player), "installed water basket cannot be taken before drying");
             Check(Math.Abs(p.GrindingDuration - 3.6000002d) < 0.001, "original blender duration");
             Check(Math.Abs(p.DrainingDuration - 3.3d) < 0.001, "original drain duration");
@@ -335,8 +336,59 @@ public static class PotatoStarchProcessingChecks
             clock.AdvanceBy(149.99d);
             Check(!p.TryStartPackaging(player) && !p.TryUseMaker(null), "no early packaging or dry drop");
             clock.AdvanceBy(0.01d);
-            Check(p.TrayState == StarchTrayState.Dried && inventory.StarchPackCount == 0, "drying never auto-awards packs");
-            Check(!p.TryUseMaker(player) && !maker.GetComponent<StarchSieve>().CanInteract(player), "cannot drop dry tray without picking up water basket");
+            Check(p.TrayState == StarchTrayState.ReadyToPack && p.RemainingPackCount == 5 && inventory.StarchPackCount == 0,
+                "drying enables five packs on top without automatic reward");
+            Check(!p.TryTakeWaterBasket(player) && !p.TryUseMaker(player), "starch must be exhausted before cleanup");
+            var topTrayPosition = trayCarry.transform.position;
+            var starchBone = trayRenderer.bones.Single(t => t.name == "B_Starch Dry");
+            float fullStarchHeight = starchBone.localPosition.y;
+            Check(!p.TryStartPackaging(player), "bare hands cannot package");
+            items.TryHoldInHands(held);
+            Check(!bundle.CanInteract(player) && !p.TryStartPackaging(player), "other held objects block wrapper and packaging");
+            items.TryReleaseFromHands(held);
+            bundle.Interact(player);
+            Check(inventory.WrapperCount == 1 && inventory.IsHoldingWrapper(player) && items.HasItem(PlayerItemSlot.Hands),
+                "wrapper pickup creates a visible hand item");
+            Check(!bundle.CanInteract(player), "cannot stack wrappers in occupied hands");
+            Check(maker.GetComponent<StarchSieve>().CanInteract(player), "maker collider also accepts packaging aimed at the upper tray");
+            Check(!p.TryReturnWaterBasket(player) && !p.TryLoadBlender(), "no return or new production before cleanup");
+            items.SelectSlot(PlayerItemSlot.Hoe);
+            Check(!p.TryStartPackaging(player) && inventory.WrapperCount == 1, "tools block packaging without consuming wrapper");
+            items.SelectSlot(PlayerItemSlot.Hands);
+            maker.GetComponent<StarchSieve>().Interact(player);
+            Check(p.TrayState == StarchTrayState.Packing, "held wrapper begins packaging through maker collider");
+            items.SelectSlot(PlayerItemSlot.Hoe);
+            clock.AdvanceBy(0.1d);
+            Check(p.TrayState == StarchTrayState.ReadyToPack && inventory.WrapperCount == 1 && inventory.StarchPackCount == 0, "changing tools cancels and restores exactly one held wrapper");
+            items.SelectSlot(PlayerItemSlot.Hands);
+            for (int pack = 1; pack <= 5; pack++)
+            {
+                if (pack > 1)
+                {
+                    Check(!p.TryStartPackaging(player), "no wrapper means no pack");
+                    bundle.Interact(player);
+                }
+                Check(p.TryStartPackaging(player) && inventory.WrapperCount == 0, "reserve exactly one wrapper");
+                Check(!p.TryTakeWaterBasket(player), "cannot take basket while packaging");
+                Check(!p.TryStartPackaging(player) && !bundle.CanInteract(player), "busy input cannot duplicate or take extra wrappers");
+                clock.IsPaused = true;
+                clock.Tick(20d);
+                Check(inventory.StarchPackCount == pack - 1, "pause stops packaging");
+                clock.IsPaused = false;
+                clock.AdvanceBy(2.99d);
+                Check(inventory.StarchPackCount == pack - 1 && p.TrayState == StarchTrayState.Packing, "no pack before three seconds");
+                clock.AdvanceBy(0.01d);
+                Check(inventory.StarchPackCount == pack && p.TotalProducedPackCount == pack && p.LastProducedPackCount == 1, "three seconds awards exactly one pack");
+                Check(!items.HasItem(PlayerItemSlot.Hands) && !inventory.IsHoldingWrapper(player), "finished wrapper frees hands");
+                Check((trayCarry.transform.position - topTrayPosition).sqrMagnitude < 0.00001f && trayRig.IsDetached,
+                    "tray remains on top throughout packaging");
+                Check(starchBone.localPosition.y < fullStarchHeight && p.RemainingPackCount == 5 - pack,
+                    "detached starch mesh and count shrink on completion");
+                clock.AdvanceBy(30d);
+                Check(inventory.StarchPackCount == pack, "waits for a fresh E; never auto-repeats");
+            }
+            Check(!p.TryStartPackaging(player) && !p.TryLoadBlender() && p.TrayState == StarchTrayState.EmptyOnTop && p.CanTakeWaterBasket,
+                "last pack leaves empty tray on top and unlocks cleanup without resetting");
             items.TryHoldInHands(held);
             Check(!p.TryTakeWaterBasket(player), "occupied hands block water basket pickup");
             items.TryReleaseFromHands(held);
@@ -365,54 +417,23 @@ public static class PotatoStarchProcessingChecks
             clock.AdvanceBy(p.MakerAnimation.Length(StarchAnimationId.DryBasketDrop) * 0.5d);
             Check(WorldVertices(trayRenderer).Average(v => v.y) < upperVertices.Average(v => v.y) - 0.1f, "visible mesh really falls");
             clock.AdvanceBy(p.MakerAnimation.Length(StarchAnimationId.DryBasketDrop) * 0.5d);
-            Check(p.TrayState == StarchTrayState.ReadyToPack && p.RemainingPackCount == 5, "landed tray is ready to package five single packs");
-            Check(p.SieveState == StarchSieveState.WaitingForBasketReturn && !p.TryStartPackaging(player), "must explicitly return water basket before packaging");
+            Check(p.TrayState == StarchTrayState.EmptyOnTop && p.RemainingPackCount == 0, "landed empty tray has no renewed starch");
+            Check(p.SieveState == StarchSieveState.WaitingForBasketReturn && !p.TryStartPackaging(player), "must explicitly return water basket after empty tray falls");
             Check(carriedWaterVertices.Zip(WorldVertices(waterRenderer), (a, b) => (a - b).sqrMagnitude).All(d => d < 0.00001f),
                 "dry tray drop leaves carried water basket in the player's hand");
             var landedTrayVertices = WorldVertices(trayRenderer);
             Check(!p.TryReturnWaterBasket(otherPlayer), "another player cannot return the carried basket");
             Check(p.TryUseMaker(player), "fresh E returns water basket after drop");
-            Check(p.WaterBasketState == StarchWaterBasketState.Docked && p.SieveState == StarchSieveState.ReadyToPack &&
+            Check(p.WaterBasketState == StarchWaterBasketState.Docked && p.SieveState == StarchSieveState.Filling &&
                 !items.HasItem(PlayerItemSlot.Hands) && !waterBasket.GetComponent<ProcessingCarryRig>().IsDetached,
                 "water basket returns to upper rig and frees hands");
-            Check(p.RemainingPackCount == 5 && inventory.StarchPackCount == 0 &&
+            Check(p.RemainingPackCount == 0 && inventory.StarchPackCount == 5 &&
                 landedTrayVertices.Zip(WorldVertices(trayRenderer), (a, b) => (a - b).sqrMagnitude).All(d => d < 0.00001f),
-                "return preserves finished starch and lower tray pose");
+                "reset preserves lower empty tray pose and earned packs");
             Check(initialWaterVertices.Zip(WorldVertices(waterRenderer), (a, b) => (a - b).sqrMagnitude).All(d => d < 0.00001f),
                 "water basket and contents return to original empty upper pose");
-            Check(!p.TryReturnWaterBasket(player) && !p.TryLoadBlender(), "no duplicate return or new production before packaging is finished");
-            items.SelectSlot(PlayerItemSlot.Hoe);
-            Check(!p.TryStartPackaging(player) && inventory.WrapperCount == 1, "tools block packaging without consuming wrapper");
-            items.SelectSlot(PlayerItemSlot.Hands);
-            items.TryHoldInHands(held);
-            Check(!p.TryStartPackaging(player), "occupied hand slot blocks packaging");
-            items.TryReleaseFromHands(held);
-            Check(p.TryStartPackaging(player), "bare hands and wrapper begin packaging");
-            items.SelectSlot(PlayerItemSlot.Hoe);
-            clock.AdvanceBy(0.1d);
-            Check(p.TrayState == StarchTrayState.ReadyToPack && inventory.WrapperCount == 1 && inventory.StarchPackCount == 0, "changing tools cancels and refunds exactly one wrapper");
-            items.SelectSlot(PlayerItemSlot.Hands);
-            for (int pack = 1; pack <= 5; pack++)
-            {
-                if (pack > 1)
-                {
-                    Check(!p.TryStartPackaging(player), "no wrapper means no pack");
-                    bundle.Interact(player);
-                }
-                Check(p.TryStartPackaging(player) && inventory.WrapperCount == 0, "reserve exactly one wrapper");
-                Check(!p.TryStartPackaging(player) && !bundle.CanInteract(player), "busy input cannot duplicate or take extra wrappers");
-                clock.IsPaused = true;
-                clock.Tick(20d);
-                Check(inventory.StarchPackCount == pack - 1, "pause stops packaging");
-                clock.IsPaused = false;
-                clock.AdvanceBy(2.99d);
-                Check(inventory.StarchPackCount == pack - 1 && p.TrayState == StarchTrayState.Packing, "no pack before three seconds");
-                clock.AdvanceBy(0.01d);
-                Check(inventory.StarchPackCount == pack && p.TotalProducedPackCount == pack && p.LastProducedPackCount == 1, "three seconds awards exactly one pack");
-                clock.AdvanceBy(30d);
-                Check(inventory.StarchPackCount == pack, "waits for a fresh E; never auto-repeats");
-            }
-            Check(!p.TryStartPackaging(player) && p.SieveFillCount == 0 && p.TrayState == StarchTrayState.InstalledEmpty, "empty reset/no double collect");
+            Check(!p.TryReturnWaterBasket(player) && p.SieveFillCount == 0 && p.TrayState == StarchTrayState.InstalledEmpty,
+                "fresh E resets exactly once after empty drop");
             Check(p.TryLoadBlender(), "second cycle can start");
             clock.AdvanceBy(100d);
             Check(p.BlenderState == StarchBlenderState.LoadedReady, "time skip stops at input gate");
@@ -426,7 +447,7 @@ public static class PotatoStarchProcessingChecks
             ValidateRig(maker.transform.Find("DryingTray_Carry").GetComponent<ProcessingCarryRig>(),
                 maker.transform.Find("FBX_Starch Dry Basket").GetComponent<SkinnedMeshRenderer>(), Check);
             ValidateRig(waterBasket.GetComponent<ProcessingCarryRig>(), waterRenderer, Check);
-            Debug.Log($"[PotatoStarchProcessingChecks] PASS: {checks} checks. Full cycle, water basket pickup/ownership/return, preserved dry tray, simultaneous handles, timed bare-hand packaging and carry rigs.");
+            Debug.Log($"[PotatoStarchProcessingChecks] PASS: {checks} checks. Full cycle, water basket pickup/ownership/return, top-tray packaging with held wrappers, empty-tray cleanup, simultaneous handles and carry rigs.");
         }
         finally { EditorSceneManager.ClosePreviewScene(scene); }
     }

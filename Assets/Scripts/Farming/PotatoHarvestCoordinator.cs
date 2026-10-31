@@ -244,9 +244,9 @@ public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
 
         float maximumHealth = tile.MaxHealth;
         if (!farmingSystem.TryCompleteHarvest(ground, cell, out float health)) return false;
-        if (!ground.TrySetCellState(cell, GroundCellState.PlantingHole))
+        if (!ground.TrySetCellState(cell, GroundCellState.HarvestClearedField))
         {
-            Debug.LogError($"[Potato Harvest] Farming data completed but G_001 transition failed. Cell={cell}", this);
+            Debug.LogError($"[Potato Harvest] Farming data completed but N_015 transition failed. Cell={cell}", this);
             return false;
         }
 

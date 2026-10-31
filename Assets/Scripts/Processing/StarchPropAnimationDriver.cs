@@ -80,13 +80,15 @@ public sealed class StarchPropAnimationDriver : MonoBehaviour
         _ => 6
     };
 
-    public void SetTime(StarchAnimationId id, double seconds)
+    public void SetTime(StarchAnimationId id, double seconds, ProcessingCarryRig detachedRig = null)
     {
         var clip = Find(id);
         int channel = Channel(id);
         heldClips[channel] = clip;
         heldTimes[channel] = Mathf.Clamp((float)seconds, 0f, clip.source.length);
         Apply(clip, heldTimes[channel]);
+        if (detachedRig)
+            foreach (var track in clip.tracks) detachedRig.SyncPoseFromSource(track.target);
     }
 
     public float HeldTime(StarchAnimationId id)

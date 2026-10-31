@@ -18,6 +18,7 @@ public sealed class ProcessingCarryRig : MonoBehaviour
 
     private RendererHome[] homes;
     private Transform copiedRoot;
+    private Dictionary<Transform, Transform> copiedBones;
     public bool IsDetached => copiedRoot;
 
     public void Configure(Transform boneRoot, SkinnedMeshRenderer[] meshes)
@@ -31,6 +32,7 @@ public sealed class ProcessingCarryRig : MonoBehaviour
         if (copiedRoot || !sourceBoneRoot) return;
         homes = new RendererHome[renderers.Length];
         var map = new Dictionary<Transform, Transform>();
+        copiedBones = map;
         copiedRoot = CopyBone(sourceBoneRoot, transform, map);
         for (int index = 0; index < renderers.Length; index++)
         {
@@ -60,6 +62,14 @@ public sealed class ProcessingCarryRig : MonoBehaviour
         return copy;
     }
 
+    public void SyncPoseFromSource(Transform source)
+    {
+        if (!copiedRoot || copiedBones == null || !copiedBones.TryGetValue(source, out var copy)) return;
+        copy.localPosition = source.localPosition;
+        copy.localRotation = source.localRotation;
+        copy.localScale = source.localScale;
+    }
+
     public void Restore()
     {
         if (!copiedRoot) return;
@@ -78,6 +88,7 @@ public sealed class ProcessingCarryRig : MonoBehaviour
         if (Application.isPlaying) Destroy(copiedRoot.gameObject);
         else DestroyImmediate(copiedRoot.gameObject);
         copiedRoot = null;
+        copiedBones = null;
         homes = null;
     }
 
