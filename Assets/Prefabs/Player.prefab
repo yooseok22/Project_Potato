@@ -56,6 +56,7 @@ GameObject:
   - component: {fileID: 8808360764778018121}
   - component: {fileID: 2069763820533829961}
   - component: {fileID: 3506513680546241895}
+  - component: {fileID: 2514669822541426896}
   m_Layer: 9
   m_Name: Player
   m_TagString: Untagged
@@ -174,6 +175,7 @@ MonoBehaviour:
   aimCamera: {fileID: 0}
   player: {fileID: 3822226571236050513}
   ground: {fileID: 0}
+  farmingSystem: {fileID: 0}
   preview: {fileID: 0}
   interactionRange: 4
   rayDistance: 100
@@ -424,6 +426,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerToolController
   farmingTarget: {fileID: 8443551847383083355}
+  farmingSystem: {fileID: 0}
   toolPrefabs:
   - {fileID: 0}
   - {fileID: 6554167530889415040, guid: 4ad6dbed7c72f9e49afa68da22a066e0, type: 3}
@@ -432,6 +435,7 @@ MonoBehaviour:
   - {fileID: 1496012693471277645, guid: 24d636832cb6a7f48886c92a9c3b583b, type: 3}
   actionRange: 4
   wateringCanCapacity: 8
+  infiniteWater: 1
   actionMask:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -447,3 +451,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0e4d5df31256b9a4293ce45c68a82783, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerTabletController
+--- !u!114 &2514669822541426896
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8894249788821231030}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dda98f85b6c3221458bc833eb9c21a34, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerBasketInventory
+  ownerId: basket:local-player

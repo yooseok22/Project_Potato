@@ -137,7 +137,8 @@ public sealed class FarmingTargetSelector : MonoBehaviour
         }
         else if (CanHarvest)
         {
-            changed = harvestCoordinator && harvestCoordinator.TryHarvest(ground, cell, out _);
+            var basket = player ? player.GetComponent<PlayerBasketInventory>() : null;
+            changed = basket && basket.TryHarvest(harvestCoordinator, ground, cell);
         }
         else
         {

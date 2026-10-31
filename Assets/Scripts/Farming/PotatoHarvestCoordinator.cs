@@ -11,6 +11,7 @@ public enum PotatoHarvestTiming : byte
 
 public enum PotatoHarvestGrade : byte
 {
+    None = 0, // Abnormal potatoes have conditions instead of a star grade.
     OneStar = 1,
     TwoStar = 2,
     ThreeStar = 3
@@ -27,6 +28,7 @@ public readonly struct PotatoHarvestResult
     public float MaxHealth { get; }
     public PotatoStatus Status { get; }
     public bool HasAbnormalStatus => AbnormalCount > 0;
+    /// <summary>None for an abnormal potato; otherwise its one-, two- or three-star grade.</summary>
     public PotatoHarvestGrade[] Grades { get; }
     public HarvestedPotatoCondition[] ItemConditions { get; }
     public int AbnormalCount
@@ -54,8 +56,16 @@ public readonly struct PotatoHarvestResult
         Health = health;
         MaxHealth = maxHealth;
         Status = status;
-        Grades = grades ?? Array.Empty<PotatoHarvestGrade>();
-        ItemConditions = itemConditions ?? new HarvestedPotatoCondition[Grades.Length];
+        grades ??= Array.Empty<PotatoHarvestGrade>();
+        if (itemConditions != null && itemConditions.Length != grades.Length)
+            throw new ArgumentException("Each harvested potato needs exactly one condition entry.", nameof(itemConditions));
+        Grades = (PotatoHarvestGrade[])grades.Clone();
+        ItemConditions = itemConditions == null ? new HarvestedPotatoCondition[Grades.Length]
+            : (HarvestedPotatoCondition[])itemConditions.Clone();
+        // A potato belongs to exactly one reward category. Keep all its condition flags,
+        // but never retain a hidden star grade on an abnormal reward.
+        for (int index = 0; index < Grades.Length; index++)
+            if (ItemConditions[index] != HarvestedPotatoCondition.None) Grades[index] = PotatoHarvestGrade.None;
     }
 }
 
@@ -361,18 +371,23 @@ public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
             return;
         }
 
-        var gradeNames = new string[result.Count];
+        var itemNames = new string[result.Count];
         var starCounts = new int[4];
         for (int index = 0; index < result.Count; index++)
         {
+            if (result.ItemConditions[index] != HarvestedPotatoCondition.None)
+            {
+                itemNames[index] = $"상태이상 감자 ({PotatoHarvestConditionRules.Describe(result.ItemConditions[index])})";
+                continue;
+            }
             starCounts[(int)result.Grades[index]]++;
-            gradeNames[index] = $"{(int)result.Grades[index]}성 {PotatoHarvestConditionRules.Describe(result.ItemConditions[index])}";
+            itemNames[index] = $"{(int)result.Grades[index]}성 감자";
         }
         Debug.Log(
             $"[Potato Harvest] Cell={result.Cell}, 수확시기={timing}, 굴착상태={quality}, " +
             $"HP={result.Health:0.#}/{result.MaxHealth:0.#}, 수확개수={result.Count}, " +
             $"획득: 1성 {starCounts[1]}개, 2성 {starCounts[2]}개, 3성 {starCounts[3]}개, " +
-            $"정상 {result.Count - result.AbnormalCount}개, 상태 이상 {result.AbnormalCount}개, 개별=[{string.Join(", ", gradeNames)}]",
+            $"정상 {result.Count - result.AbnormalCount}개, 상태이상 {result.AbnormalCount}개, 개별=[{string.Join(", ", itemNames)}]",
             this);
     }
 

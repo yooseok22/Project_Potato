@@ -21,6 +21,7 @@ public sealed class PlayerToolController : MonoBehaviour
     private int water;
     private WateringInteractionView wateringView;
     private AutomationPlayerController automation;
+    private PlayerInteractionController interaction;
 
     public int Water => water;
     public int WaterCapacity => wateringCanCapacity;
@@ -34,6 +35,7 @@ public sealed class PlayerToolController : MonoBehaviour
         if (!farmingTarget) farmingTarget = GetComponent<FarmingTargetSelector>();
         if (!farmingSystem) farmingSystem = FindAnyObjectByType<PotatoFarmingSystem>();
         wateringView = FindAnyObjectByType<WateringInteractionView>();
+        interaction = GetComponent<PlayerInteractionController>();
         if (toolPrefabs == null || toolPrefabs.Length != 5) Array.Resize(ref toolPrefabs, 5);
     }
 
@@ -55,7 +57,8 @@ public sealed class PlayerToolController : MonoBehaviour
         UpdateFarmingPrompt();
         if (!player.CanUseGameplayInput || items.IsAimingThrow || player.CursorCapturedThisFrame) return;
         var keyboard = Keyboard.current;
-        if (items.SelectedSlot == PlayerItemSlot.Hands && keyboard != null && keyboard.eKey.wasPressedThisFrame)
+        if (items.SelectedSlot == PlayerItemSlot.Hands && !(interaction && interaction.HasInteractionTarget) &&
+            keyboard != null && keyboard.eKey.wasPressedThisFrame)
         {
             farmingTarget?.TryUseHandsSelected(farmingSystem);
             UpdateFarmingPrompt();
@@ -114,7 +117,7 @@ public sealed class PlayerToolController : MonoBehaviour
     {
         if (!wateringView) return;
         string prompt = null;
-        if (player.CanUseGameplayInput && farmingTarget)
+        if (player.CanUseGameplayInput && farmingTarget && !(interaction && interaction.HasInteractionTarget))
         {
             farmingTarget.RefreshTarget();
             if (items.SelectedSlot == PlayerItemSlot.Hands && farmingTarget.CanCover)
