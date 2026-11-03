@@ -36,13 +36,18 @@ public sealed class AutomationMachineFactory : MonoBehaviour
         {
             factory.Box("Base", new Vector3(0, 0.08f, 0), new Vector3(0.65f, 0.16f, 0.65f), body);
             factory.Box("Pillar", new Vector3(0, 0.65f, 0), new Vector3(0.15f, 1.3f, 0.15f), body);
-            factory.Box("TBar", new Vector3(0, 1.3f, 0), new Vector3(size * 0.8f, 0.12f, 0.12f), body);
+            var head = new GameObject("RotatingHead").transform;
+            head.SetParent(root.transform, false); head.localPosition = Vector3.up * 1.3f;
+            var bar = factory.Box("TBar", new Vector3(0, 1.3f, 0), new Vector3(size * 0.8f, 0.12f, 0.12f), body);
+            bar.transform.SetParent(head, false); bar.transform.localPosition = Vector3.zero;
             factory.Box("Status", new Vector3(0, 0.7f, -0.1f), Vector3.one * 0.13f, indicator);
             var collider = root.AddComponent<BoxCollider>(); collider.center = Vector3.up * 0.65f; collider.size = new Vector3(0.65f, 1.4f, 0.65f);
             var obstacle = root.AddComponent<UnityEngine.AI.NavMeshObstacle>(); obstacle.carving = true;
             obstacle.center = Vector3.up * 0.65f; obstacle.size = collider.size;
             left = factory.Spray("LeftWater", new Vector3(-size * 0.4f, 1.3f, 0), Vector3.left);
             right = factory.Spray("RightWater", new Vector3(size * 0.4f, 1.3f, 0), Vector3.right);
+            left.transform.SetParent(head, false); left.transform.localPosition = Vector3.left * size * 0.4f;
+            right.transform.SetParent(head, false); right.transform.localPosition = Vector3.right * size * 0.4f;
         }
         else
         {
@@ -79,6 +84,7 @@ public sealed class AutomationMachineFactory : MonoBehaviour
         var particles = go.AddComponent<ParticleSystem>(); particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var main = particles.main; main.startLifetime = 0.9f; main.startSpeed = 6f; main.startSize = 0.04f;
         main.gravityModifier = 0.8f; main.startColor = new Color(0.4f, 0.8f, 1f, 0.8f); main.playOnAwake = false;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
         var emission = particles.emission; emission.rateOverTime = 35;
         var shape = particles.shape; shape.shapeType = ParticleSystemShapeType.Cone; shape.angle = 12; shape.radius = 0.02f;
         var material = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Sprites/Default"));

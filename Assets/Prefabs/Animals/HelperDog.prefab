@@ -121,12 +121,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DogHelperController
   farmingSystem: {fileID: 0}
+  maxHealth: 50
+  recoveryPoint: {fileID: 0}
+  recoveryDurationSeconds: 180
+  recoveryArrivalDistance: 0.75
   detectionRange: 30
   moveSpeed: 4
   workDistance: 1.5
   barkDistance: 3
   barkInterval: 1
-  barkDamage: 10
+  barkDamage: 15
   stunDuration: 3
   barkAudio: {fileID: 0}
   barkClip: {fileID: 0}

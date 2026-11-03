@@ -62,6 +62,21 @@ public static class BoarSystemChecks
                 GetField<PotatoFarmingSystem.FarmingTile>(boar, "cropTarget") != null,
                 "after the first crop, another crop in the same field is selected");
 
+            Check(boar.MaxHealth == 30f && boar.TryTakeDamage(10f) && boar.CurrentHealth == 20f &&
+                boar.State == BoarState.ChasingPlayer,
+                "projectile damage starts one retaliation");
+            var attacker = new GameObject("Attacker");
+            SceneManager.MoveGameObjectToScene(attacker, scene);
+            attacker.transform.position = boar.transform.position + Vector3.forward;
+            SetField(boar, "playerTarget", attacker.transform);
+            Invoke(boar, "BeginCharge");
+            SetField(boar, "stateEndsAt", -1f);
+            Invoke(boar, "UpdateCharging");
+            Check(boar.State == BoarState.SeekingCrop &&
+                GetField<Transform>(boar, "playerTarget") == null &&
+                GetField<PotatoFarmingSystem.FarmingTile>(boar, "cropTarget") != null,
+                "one charge completes retaliation and resumes crop work");
+
             var nextCrop = GetField<PotatoFarmingSystem.FarmingTile>(boar, "cropTarget");
             boarObject.transform.position = nextCrop.Ground.CellCenter(nextCrop.Cell);
             Invoke(boar, "UpdateSeekingCrop");
@@ -90,10 +105,14 @@ public static class BoarSystemChecks
             Check(hungryBoar.State == BoarState.Fleeing,
                 "a boar leaves toward the field edge when no crop is available");
 
-            Check(boar.TryTakeDamage(25f) && boar.CurrentHealth == 75f &&
-                boar.State == BoarState.ChasingPlayer,
-                "projectile damage makes a living boar aggressive");
-            Check(boar.TryTakeDamage(100f) && boar.IsDead && boar.State == BoarState.Fleeing,
+            var lethalBoarObject = new GameObject("LethalBoar");
+            SceneManager.MoveGameObjectToScene(lethalBoarObject, scene);
+            lethalBoarObject.AddComponent<BoarChargeHitbox>();
+            var lethalBoar = lethalBoarObject.AddComponent<BoarController>();
+            typeof(BoarController).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.Invoke(lethalBoar, null);
+            lethalBoar.Initialize(farming, new[] { ground }, ground);
+            Check(lethalBoar.TryTakeDamage(100f) && lethalBoar.IsDead && lethalBoar.State == BoarState.Fleeing,
                 "lethal damage starts fleeing");
             Debug.Log($"[BoarSystemChecks] PASS: {checks} checks.");
         }

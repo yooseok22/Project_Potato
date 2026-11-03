@@ -17,6 +17,8 @@ public sealed class AutomationPlayerController : MonoBehaviour
     private LineRenderer preview;
     private readonly LineRenderer[] previewArrows = new LineRenderer[2];
     private readonly TMP_Text[] previewLabels = new TMP_Text[2];
+    private LineRenderer previewSprinklerRange;
+    private readonly Vector3[] sprinklerRangePoints = new Vector3[65];
     private Material previewMaterial;
     private Canvas canvas;
     private RectTransform panel;
@@ -175,6 +177,12 @@ public sealed class AutomationPlayerController : MonoBehaviour
             previewMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default"));
             preview.sharedMaterial = previewMaterial; preview.startWidth = preview.endWidth = 0.04f;
             preview.positionCount = 5; preview.useWorldSpace = true;
+            var rangeObject = new GameObject("SprinklerCoverage"); rangeObject.transform.SetParent(go.transform, false);
+            previewSprinklerRange = rangeObject.AddComponent<LineRenderer>();
+            previewSprinklerRange.sharedMaterial = previewMaterial;
+            previewSprinklerRange.startWidth = previewSprinklerRange.endWidth = 0.045f;
+            previewSprinklerRange.positionCount = sprinklerRangePoints.Length;
+            previewSprinklerRange.useWorldSpace = true;
             var font = Resources.Load<TMP_FontAsset>("Fonts/MalgunGothic-Dynamic");
             for (int index = 0; index < previewArrows.Length; index++)
             {
@@ -205,12 +213,22 @@ public sealed class AutomationPlayerController : MonoBehaviour
             center + turn * new Vector3(-half, 0, -half) });
 
         bool sprinkler = selected == AutomationMachineKind.Sprinkler;
+        previewSprinklerRange.gameObject.SetActive(sprinkler);
+        if (sprinkler)
+        {
+            for (int index = 0; index < sprinklerRangePoints.Length; index++)
+            {
+                float angle = index * Mathf.PI * 2f / (sprinklerRangePoints.Length - 1);
+                sprinklerRangePoints[index] = center + new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)) * AutomationBlock.DefaultSprinklerReach;
+            }
+            previewSprinklerRange.SetPositions(sprinklerRangePoints);
+        }
         var camera = ViewCamera();
         for (int index = 0; index < previewArrows.Length; index++)
         {
             bool show = index == 0 || sprinkler;
             previewArrows[index].gameObject.SetActive(show);
-            previewLabels[index].gameObject.SetActive(show);
+            previewLabels[index].gameObject.SetActive(show && (!sprinkler || index == 0));
             if (!show) continue;
             // Source sockets are on local -Z. Belts move along +Z; spray travels along +/-X.
             Vector3 direction = turn * (sprinkler ? (index == 0 ? Vector3.left : Vector3.right) :
@@ -222,11 +240,12 @@ public sealed class AutomationPlayerController : MonoBehaviour
             Vector3 wing = tip - direction * size * 0.20f;
             previewArrows[index].SetPositions(new[] { tail, tip, wing + side * size * 0.14f, tip, wing - side * size * 0.14f });
             var directionLabel = previewLabels[index];
-            string caption = sprinkler ? (index == 0 ? "좌 · 살수" : "우 · 살수") :
+            string caption = sprinkler ? "360° 회전 · 반경 6m" :
                 selected == AutomationMachineKind.Conveyor ? "이동 방향" : "앞면 · 단자";
             if (directionLabel.text != caption) directionLabel.text = caption;
             directionLabel.color = valid ? new Color(0.55f, 1f, 0.55f) : new Color(1f, 0.4f, 0.4f);
-            directionLabel.transform.position = center + direction * size * 0.92f + Vector3.up * 0.22f;
+            directionLabel.rectTransform.sizeDelta = new Vector2(sprinkler ? 5f : 2.4f, 0.6f);
+            directionLabel.transform.position = center + (sprinkler ? turn * Vector3.forward * size * 1.2f : direction * size * 0.92f) + Vector3.up * 0.22f;
             if (camera) directionLabel.transform.rotation = camera.transform.rotation;
         }
     }
