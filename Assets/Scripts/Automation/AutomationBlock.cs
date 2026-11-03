@@ -7,6 +7,7 @@ public enum AutomationSupplyKind { Electricity, Water }
 [DisallowMultipleComponent]
 public sealed class AutomationBlock : MonoBehaviour
 {
+    public const float DefaultSprinklerReach = 6f;
     [SerializeField] private AutomationMachineKind kind;
     [SerializeField, Min(0.1f)] private float blockSize = 2f;
     [SerializeField, Min(0f)] private float generatorOutput = 100f;
@@ -14,13 +15,19 @@ public sealed class AutomationBlock : MonoBehaviour
     [SerializeField, Min(0.1f)] private float maximumLineLength = 20f;
     [SerializeField, Min(0f)] private float conveyorSpeed = 2f;
     [SerializeField, Min(1)] private int poweredRailReach = 15;
-    [SerializeField, Min(0f)] private float sprinklerReach = 6f;
+    [SerializeField, Min(0f)] private float sprinklerReach = DefaultSprinklerReach;
     [SerializeField, Min(0.1f)] private float sprinklerInterval = 1f;
+    [SerializeField, Min(0f)] private float sprinklerDegreesPerSecond = 30f;
     [SerializeField] private bool sprinklerPassThroughUnlocked;
     private float nextWaterAt;
     private Material indicatorMaterial;
     private ParticleSystem leftSpray, rightSpray;
     private Collider[] blockingColliders;
+    private Transform sprinklerHead;
+    private float sprinklerAngle;
+    private float pendingSprinklerSweep;
+
+    public float SprinklerAngle => sprinklerAngle;
 
     public AutomationMachineKind Kind => kind;
     public float BlockSize => blockSize;
@@ -70,13 +77,23 @@ public sealed class AutomationBlock : MonoBehaviour
         indicatorMaterial = indicator;
         leftSpray = left;
         rightSpray = right;
+        sprinklerHead = left && left.transform.parent != transform ? left.transform.parent : null;
         SetSprinklerPassThroughUnlocked(sprinklerPassThroughUnlocked);
+    }
+
+    internal void AdvanceSprinkler(float deltaSeconds)
+    {
+        if (kind != AutomationMachineKind.Sprinkler || !IsOperating || deltaSeconds <= 0f) return;
+        float angle = sprinklerDegreesPerSecond * deltaSeconds;
+        sprinklerAngle = Mathf.Repeat(sprinklerAngle + angle, 360f);
+        pendingSprinklerSweep = Mathf.Min(360f, pendingSprinklerSweep + angle);
+        if (sprinklerHead) sprinklerHead.localRotation = Quaternion.Euler(0, sprinklerAngle, 0);
     }
 
     internal int WaterCrops(PotatoFarmingSystem farming, GroundGrid grid)
     {
         if (!IsOperating || !farming || !grid) return 0;
-        // A narrow strip along the T bar's local X axis, on both sides of the pillar.
+        // Cover the arc swept by both jets since the last watering tick, including across 0 degrees.
         Vector2Int minimum = grid.WorldToCell(transform.position - Vector3.one * (sprinklerReach + grid.CellSize));
         Vector2Int maximum = grid.WorldToCell(transform.position + Vector3.one * (sprinklerReach + grid.CellSize));
         int count = 0;
@@ -85,7 +102,13 @@ public sealed class AutomationBlock : MonoBehaviour
             {
                 var cell = new Vector2Int(x, z);
                 Vector3 offset = Quaternion.Inverse(transform.rotation) * (grid.CellCenter(cell) - transform.position);
-                if (Mathf.Abs(offset.x) > sprinklerReach || Mathf.Abs(offset.z) > grid.CellSize * 0.5f ||
+                float radius = new Vector2(offset.x, offset.z).magnitude;
+                float halfWidth = grid.CellSize * 0.5f;
+                float tolerance = radius > halfWidth ? Mathf.Asin(halfWidth / radius) * Mathf.Rad2Deg : 90f;
+                float bearing = Mathf.Atan2(-offset.z, offset.x) * Mathf.Rad2Deg;
+                // Opposed nozzles repeat the same coverage every 180 degrees.
+                float sweptBearing = Mathf.Repeat(bearing - (sprinklerAngle - pendingSprinklerSweep) + tolerance, 180f);
+                if (radius > sprinklerReach || sweptBearing > pendingSprinklerSweep + tolerance * 2f + 0.001f ||
                     Mathf.Abs(offset.y) > 1f || !grid.CanWater(cell) ||
                     !farming.TryGetFarmingTile(grid, cell, out var crop) || crop.IsDead) continue;
                 if (grid.TryWater(cell)) { farming.TryWater(grid, cell); count++; }
@@ -97,12 +120,16 @@ public sealed class AutomationBlock : MonoBehaviour
     {
         bool operating = IsOperating;
         if (indicatorMaterial) indicatorMaterial.color = operating ? new Color(0.15f, 0.9f, 0.4f) : new Color(0.9f, 0.25f, 0.12f);
+        AdvanceSprinkler(Time.deltaTime);
         Spray(leftSpray, operating); Spray(rightSpray, operating);
-        if (kind != AutomationMachineKind.Sprinkler || Time.time < nextWaterAt) return;
+        if (kind != AutomationMachineKind.Sprinkler) return;
+        if (!operating) { pendingSprinklerSweep = 0f; return; }
+        if (Time.time < nextWaterAt) return;
         nextWaterAt = Time.time + sprinklerInterval;
         foreach (var grid in world.Grids)
             foreach (var farming in world.FarmingSystems)
                 WaterCrops(farming, grid);
+        pendingSprinklerSweep = 0f;
     }
 
     private static void Spray(ParticleSystem particles, bool active)

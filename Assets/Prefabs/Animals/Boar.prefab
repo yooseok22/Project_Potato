@@ -156,6 +156,7 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::BoarChargeHitbox
   forceMultiplier: 1
+  dogDamage: 10
 --- !u!195 &3562330040684104790
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -190,7 +191,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db6dbd822ef01b144a6ed11792ef2d89, type: 3}
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::BoarController
-  maxHealth: 100
+  maxHealth: 30
   cropDamage: 35
   cropAttackInterval: 3
   cropAttackDistance: 1.6
@@ -204,4 +205,3 @@ MonoBehaviour:
   fleeDuration: 5
   chargeStartDistance: 8
   chargeDuration: 1.2
-  chargeCooldown: 3

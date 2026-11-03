@@ -7,6 +7,8 @@ public sealed class DogSpawnManager : MonoBehaviour
     [SerializeField] private DogHelperController dogPrefab;
     [SerializeField] private PotatoFarmingSystem farmingSystem;
     [SerializeField] private Transform spawnPoint;
+    [Tooltip("Where a zero-HP dog returns to recover. Falls back to the spawn point.")]
+    [SerializeField] private Transform recoveryPoint;
     [SerializeField] private bool spawnOnStart;
     public DogHelperController ActiveDog { get; private set; }
 
@@ -23,6 +25,6 @@ public sealed class DogSpawnManager : MonoBehaviour
         if (NavMesh.SamplePosition(position, out var hit, 5f, NavMesh.AllAreas)) position = hit.position;
         else { Debug.LogWarning("No walkable NavMesh near the dog spawn point. Wait for the bake or move the spawn point.", this); return; }
         ActiveDog = Instantiate(dogPrefab, position, Quaternion.identity);
-        ActiveDog.Initialize(farmingSystem);
+        ActiveDog.Initialize(farmingSystem, recoveryPoint ? recoveryPoint : spawnPoint);
     }
 }
