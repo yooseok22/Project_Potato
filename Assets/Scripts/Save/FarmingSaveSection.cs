@@ -81,7 +81,7 @@ public sealed class FarmingSaveSection : ISaveSection
                     && Enum.IsDefined(typeof(PotatoGrowthStage), crop.stage)
                     && SaveValidation.Finite(crop.maxHealth) && crop.maxHealth >= 1
                     && SaveValidation.NonNegative(crop.health) && crop.health <= crop.maxHealth
-                    && SaveValidation.NonNegative(crop.bugExpiresAt)
+                    && SaveValidation.NonNegative(crop.bugExpiresAt) && SaveValidation.NonNegative(crop.bugPreventionUntil)
                     && (!crop.hasBugs || crop.bugSpawnChecked && crop.watered), "Invalid crop state.");
             }
         }

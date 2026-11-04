@@ -14,7 +14,7 @@ public sealed partial class PotatoFarmingSystem
             stage = Stage, health = CurrentHealth, maxHealth = MaxHealth,
             status = Status, isSoilCovered = IsSoilCovered, soilCoverDeadlineChecked = SoilCoverDeadlineChecked,
             isMulchingFilmApplied = IsMulchingFilmApplied,
-            hasBugs = HasBugs, bugSpawnChecked = BugSpawnChecked, bugExpiresAt = BugExpiresAt
+            hasBugs = HasBugs, bugSpawnChecked = BugSpawnChecked, bugExpiresAt = BugExpiresAt, bugPreventionUntil = BugPreventionUntil
         };
 
         internal FarmingTile(FarmCropData data, GroundGrid grid, WorldClock clock, Action<FarmingTile, float> healthChanged)
@@ -37,6 +37,7 @@ public sealed partial class PotatoFarmingSystem
             HasBugs = data.hasBugs;
             BugSpawnChecked = data.bugSpawnChecked || Stage >= PotatoGrowthStage.TwoLargeLeaves;
             BugExpiresAt = data.bugExpiresAt;
+            BugPreventionUntil = data.bugPreventionUntil;
         }
     }
 

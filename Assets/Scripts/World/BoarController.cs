@@ -17,7 +17,7 @@ public enum BoarState : byte
 public sealed class BoarController : MonoBehaviour, IDamageable
 {
     [Header("Health")]
-    [SerializeField, Min(1f)] private float maxHealth = 100f;
+    [SerializeField, Min(1f)] private float maxHealth = 30f;
     [Header("Crop Attack")]
     [SerializeField, Min(0f)] private float cropDamage = 35f;
     [SerializeField, Min(0.1f)] private float cropAttackInterval = 3f;
@@ -35,7 +35,6 @@ public sealed class BoarController : MonoBehaviour, IDamageable
     [Header("Charge")]
     [SerializeField, Min(0.1f)] private float chargeStartDistance = 8f;
     [SerializeField, Min(0.1f)] private float chargeDuration = 1.2f;
-    [SerializeField, Min(0.1f)] private float chargeCooldown = 3f;
 
     private PotatoFarmingSystem farmingSystem;
     private GroundGrid[] allowedGrounds = Array.Empty<GroundGrid>();
@@ -47,7 +46,6 @@ public sealed class BoarController : MonoBehaviour, IDamageable
     private DogHelperController dogTarget;
     private Vector3 directDestination;
     private float nextCropAttackAt;
-    private float nextChargeAt;
     private float stateEndsAt;
     private bool hasDestination;
     private Quaternion modelRotationOffset;
@@ -91,7 +89,8 @@ public sealed class BoarController : MonoBehaviour, IDamageable
 
     public bool TryTakeDamage(float amount)
     {
-        if (float.IsNaN(amount) || float.IsInfinity(amount) || amount <= 0f || IsDead) return false;
+        if (float.IsNaN(amount) || float.IsInfinity(amount) || amount <= 0f || IsDead || State == BoarState.Fleeing)
+            return false;
         CurrentHealth = Mathf.Max(0f, CurrentHealth - amount);
         if (IsDead) BeginFlee();
         else BeginPlayerAggro();
@@ -106,10 +105,11 @@ public sealed class BoarController : MonoBehaviour, IDamageable
         dogTarget = dog;
         playerTarget = dog.transform;
         if (IsDead) BeginFlee();
-        else if (State != BoarState.Charging)
+        else
         {
             cropTarget = null;
             chargeHitbox.SetCharging(false);
+            StopMoving();
             State = BoarState.ChasingPlayer;
         }
         return true;
@@ -196,28 +196,30 @@ public sealed class BoarController : MonoBehaviour, IDamageable
 
     private void UpdateChasingPlayer()
     {
-        if (dogTarget && dogTarget.IsStunned)
+        if (dogTarget)
         {
-            dogTarget = null;
-            playerTarget = null;
+            if (dogTarget.isActiveAndEnabled)
+                playerTarget = dogTarget.transform;
+            else
+            {
+                FinishRetaliation();
+                return;
+            }
         }
-        if (!playerTarget) playerTarget = FindNearestPlayer();
-        if (!playerTarget)
+        else if (!playerTarget || !playerTarget.gameObject.activeInHierarchy)
         {
-            State = BoarState.SeekingCrop;
-            if (!FindNextCrop()) BeginSatisfiedFlee();
+            FinishRetaliation();
             return;
         }
         float distance = HorizontalDistance(transform.position, playerTarget.position);
         SetDestination(playerTarget.position, chaseSpeed, 1f);
-        if (distance <= chargeStartDistance && Time.time >= nextChargeAt) BeginCharge();
+        if (distance <= chargeStartDistance) BeginCharge();
     }
 
     private void BeginCharge()
     {
         State = BoarState.Charging;
         stateEndsAt = Time.time + chargeDuration;
-        nextChargeAt = stateEndsAt + chargeCooldown;
         chargeHitbox.SetCharging(true);
         Vector3 direction = playerTarget
             ? playerTarget.position - transform.position : transform.forward;
@@ -231,7 +233,16 @@ public sealed class BoarController : MonoBehaviour, IDamageable
     {
         if (Time.time < stateEndsAt) return;
         chargeHitbox.SetCharging(false);
-        State = BoarState.ChasingPlayer;
+        FinishRetaliation();
+    }
+
+    private void FinishRetaliation()
+    {
+        dogTarget = null;
+        playerTarget = null;
+        cropTarget = null;
+        State = BoarState.SeekingCrop;
+        if (!FindNextCrop()) BeginSatisfiedFlee();
     }
 
     private void BeginFlee()

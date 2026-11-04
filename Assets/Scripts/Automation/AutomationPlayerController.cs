@@ -6,17 +6,20 @@ using UnityEngine.InputSystem;
 /// <summary>Free offline construction. B toggles, Z/X select, R rotates; E connects, RMB pins.</summary>
 [DefaultExecutionOrder(-50)]
 [RequireComponent(typeof(FirstPersonPlayerController))]
-public sealed class AutomationPlayerController : MonoBehaviour
+public sealed partial class AutomationPlayerController : MonoBehaviour
 {
     private FirstPersonPlayerController player;
     private PlayerItemController items;
     private CharacterController character;
     private AutomationMachineKind selected;
     private int rotation;
+    private FarmRobotSize selectedRobotSize;
     private AutomationLine heldLine;
     private LineRenderer preview;
     private readonly LineRenderer[] previewArrows = new LineRenderer[2];
     private readonly TMP_Text[] previewLabels = new TMP_Text[2];
+    private LineRenderer previewSprinklerRange;
+    private readonly Vector3[] sprinklerRangePoints = new Vector3[65];
     private Material previewMaterial;
     private Canvas canvas;
     private RectTransform panel;
@@ -25,7 +28,7 @@ public sealed class AutomationPlayerController : MonoBehaviour
     private float notificationUntil;
     private RaycastHit[] hits = new RaycastHit[24];
     public bool IsBuilding { get; private set; }
-    public bool ConsumesGameplayActions => IsBuilding;
+    public bool ConsumesGameplayActions => IsBuilding || configuringRobot;
 
     private void Awake()
     {
@@ -36,12 +39,13 @@ public sealed class AutomationPlayerController : MonoBehaviour
 
     private void Update()
     {
-        if (!player.IsLocallyControlled) { SetBuilding(false); return; }
+        if (!player.IsLocallyControlled) { SetBuilding(false); EndRobotConfiguration(false); return; }
         var world = AutomationWorld.Instance;
         if (!world) return;
         if (!canvas) CreateView();
         var keyboard = Keyboard.current;
-        if (!AutomationWorld.Offline) { SetBuilding(false); DrawText("자동화는 싱글플레이에서 사용할 수 있습니다."); return; }
+        if (!AutomationWorld.Offline) { SetBuilding(false); EndRobotConfiguration(false); DrawText("자동화는 싱글플레이에서 사용할 수 있습니다."); return; }
+        if (configuringRobot) { UpdateRobotConfiguration(); return; }
         if (keyboard != null && keyboard.bKey.wasPressedThisFrame && player.CanUseGameplayInput)
         {
             if (items && (items.IsAimingThrow || items.HasItem(items.SelectedSlot))) Notify("들고 있는 물건을 내려놓고 건설 모드를 여세요.");
@@ -59,15 +63,17 @@ public sealed class AutomationPlayerController : MonoBehaviour
             return;
         }
         if (keyboard == null) return;
-        if (keyboard.zKey.wasPressedThisFrame) selected = (AutomationMachineKind)(((int)selected + 3) % 4);
-        if (keyboard.xKey.wasPressedThisFrame) selected = (AutomationMachineKind)(((int)selected + 1) % 4);
+        if (keyboard.zKey.wasPressedThisFrame) selected = (AutomationMachineKind)(((int)selected + 6) % 7);
+        if (keyboard.xKey.wasPressedThisFrame) selected = (AutomationMachineKind)(((int)selected + 1) % 7);
+        bool robotStation = selected >= AutomationMachineKind.SeederStation;
+        if (robotStation && keyboard.vKey.wasPressedThisFrame) selectedRobotSize = (FarmRobotSize)(((int)selectedRobotSize + 1) % 3);
         if (keyboard.rKey.wasPressedThisFrame) rotation = (rotation + 1) % 4;
         bool hasHit = Aim(out var hit);
         var target = hasHit ? hit.collider.GetComponentInParent<AutomationBlock>() : null;
         bool ground = hasHit && !target && hit.normal.y >= 0.9f && !hit.collider.attachedRigidbody;
         Vector3 position = ground ? world.Snap(hit.point) : Vector3.zero;
         bool supported = ground && Supported(position, world.BlockSize, out position);
-        bool valid = supported && world.CanPlace(position, world.BlockSize);
+        bool valid = supported && world.CanPlace(position, world.BlockSize) && (!robotStation || world.TryRobotGround(position, out _));
         UpdatePreview(position, world.BlockSize, valid, ground && !heldLine);
         var mouse = Mouse.current;
         if (keyboard.backspaceKey.wasPressedThisFrame && heldLine)
@@ -92,8 +98,13 @@ public sealed class AutomationPlayerController : MonoBehaviour
         {
             if (mouse != null && mouse.leftButton.wasPressedThisFrame && !player.CursorCapturedThisFrame)
             {
-                if (valid) world.Place(selected, position, Quaternion.Euler(0, rotation * 90, 0));
-                else Notify("평평하고 비어 있는 땅을 선택하세요.");
+                if (valid) world.Place(selected, position, Quaternion.Euler(0, rotation * 90, 0), selectedRobotSize);
+                else Notify(robotStation ? "충전소는 비어 있는 일반 땅에만 설치할 수 있습니다." : "평평하고 비어 있는 땅을 선택하세요.");
+            }
+            if (keyboard.eKey.wasPressedThisFrame && target && target.TryGetComponent<FarmRobotStation>(out var station))
+            {
+                if (station.IsAtDock) BeginRobotConfiguration(station); else Notify("로봇이 충전소로 돌아온 뒤 설정하세요.");
+                return;
             }
             if (keyboard.eKey.wasPressedThisFrame && target && target.OutletCount > 0)
             {
@@ -104,10 +115,13 @@ public sealed class AutomationPlayerController : MonoBehaviour
             if (keyboard.deleteKey.wasPressedThisFrame && target) world.RemoveBlock(target);
         }
         string text = $"농장 자동화 · [B] 나가기\n[Z / X] {Name(selected)}  ·  [R] {rotation * 90}°\n";
+        if (robotStation) text += $"[V] 크기: {RobotSizeName(selectedRobotSize)} · 최대 {world.RobotSettings.For(selectedRobotSize).maxWorkCells}칸\n";
         text += heldLine
             ? $"{(heldLine.Source.SupplyKind == AutomationSupplyKind.Water ? "호스" : "코드")} {heldLine.RouteLength(ViewCamera() ? ViewCamera().transform.position : transform.position):0.0} / {heldLine.Source.MaximumLineLength:0}m\n[우클릭] 바닥 고정 · 기계에 [E] 연결\n[Backspace] 마지막 고정 취소 / 줄 회수"
             : "[좌클릭] 설치 · 공급 장치에 [E] 줄 꺼내기\n[F] 연결 회수 · [Delete] 기계 철거";
-        if (target)
+        if (target && target.TryGetComponent<FarmRobotStation>(out var robotTarget))
+            text += $"\n{robotTarget.RoleName} · {robotTarget.StateName} · 충전 {robotTarget.Charge01:P0}";
+        else if (target)
             text += target.OutletCount > 0 ? $"\n{target.DisplayName} · 연결 {world.UsedOutlets(target)} / {target.OutletCount}" :
                 $"\n{target.DisplayName} · 전력 {target.PowerFraction:P0}" +
                 (target.Kind == AutomationMachineKind.Sprinkler ? $" · 물 {(target.HasWater ? "연결" : "없음")}" : $" · 속도 {target.TransportSpeed:0.0}m/s");
@@ -116,7 +130,8 @@ public sealed class AutomationPlayerController : MonoBehaviour
     }
 
     private static string Name(AutomationMachineKind kind) => kind switch
-    { AutomationMachineKind.Generator => "발전기", AutomationMachineKind.WaterTank => "물탱크", AutomationMachineKind.Sprinkler => "스프링클러", _ => "작물 이동 레일" };
+    { AutomationMachineKind.Generator => "발전기", AutomationMachineKind.WaterTank => "물탱크", AutomationMachineKind.Sprinkler => "스프링클러",
+        AutomationMachineKind.SeederStation => "감자 파종 로봇", AutomationMachineKind.DroneStation => "방제 드론", AutomationMachineKind.MulchingStation => "멀칭 로봇", _ => "작물 이동 레일" };
     private Camera ViewCamera() => player.ViewCamera ? player.ViewCamera.GetComponent<Camera>() : Camera.main;
     private bool Aim(out RaycastHit closest)
     {
@@ -175,6 +190,12 @@ public sealed class AutomationPlayerController : MonoBehaviour
             previewMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default"));
             preview.sharedMaterial = previewMaterial; preview.startWidth = preview.endWidth = 0.04f;
             preview.positionCount = 5; preview.useWorldSpace = true;
+            var rangeObject = new GameObject("SprinklerCoverage"); rangeObject.transform.SetParent(go.transform, false);
+            previewSprinklerRange = rangeObject.AddComponent<LineRenderer>();
+            previewSprinklerRange.sharedMaterial = previewMaterial;
+            previewSprinklerRange.startWidth = previewSprinklerRange.endWidth = 0.045f;
+            previewSprinklerRange.positionCount = sprinklerRangePoints.Length;
+            previewSprinklerRange.useWorldSpace = true;
             var font = Resources.Load<TMP_FontAsset>("Fonts/MalgunGothic-Dynamic");
             for (int index = 0; index < previewArrows.Length; index++)
             {
@@ -205,12 +226,22 @@ public sealed class AutomationPlayerController : MonoBehaviour
             center + turn * new Vector3(-half, 0, -half) });
 
         bool sprinkler = selected == AutomationMachineKind.Sprinkler;
+        previewSprinklerRange.gameObject.SetActive(sprinkler);
+        if (sprinkler)
+        {
+            for (int index = 0; index < sprinklerRangePoints.Length; index++)
+            {
+                float angle = index * Mathf.PI * 2f / (sprinklerRangePoints.Length - 1);
+                sprinklerRangePoints[index] = center + new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)) * AutomationBlock.DefaultSprinklerReach;
+            }
+            previewSprinklerRange.SetPositions(sprinklerRangePoints);
+        }
         var camera = ViewCamera();
         for (int index = 0; index < previewArrows.Length; index++)
         {
             bool show = index == 0 || sprinkler;
             previewArrows[index].gameObject.SetActive(show);
-            previewLabels[index].gameObject.SetActive(show);
+            previewLabels[index].gameObject.SetActive(show && (!sprinkler || index == 0));
             if (!show) continue;
             // Source sockets are on local -Z. Belts move along +Z; spray travels along +/-X.
             Vector3 direction = turn * (sprinkler ? (index == 0 ? Vector3.left : Vector3.right) :
@@ -222,11 +253,12 @@ public sealed class AutomationPlayerController : MonoBehaviour
             Vector3 wing = tip - direction * size * 0.20f;
             previewArrows[index].SetPositions(new[] { tail, tip, wing + side * size * 0.14f, tip, wing - side * size * 0.14f });
             var directionLabel = previewLabels[index];
-            string caption = sprinkler ? (index == 0 ? "좌 · 살수" : "우 · 살수") :
+            string caption = sprinkler ? "360° 회전 · 반경 6m" :
                 selected == AutomationMachineKind.Conveyor ? "이동 방향" : "앞면 · 단자";
             if (directionLabel.text != caption) directionLabel.text = caption;
             directionLabel.color = valid ? new Color(0.55f, 1f, 0.55f) : new Color(1f, 0.4f, 0.4f);
-            directionLabel.transform.position = center + direction * size * 0.92f + Vector3.up * 0.22f;
+            directionLabel.rectTransform.sizeDelta = new Vector2(sprinkler ? 5f : 2.4f, 0.6f);
+            directionLabel.transform.position = center + (sprinkler ? turn * Vector3.forward * size * 1.2f : direction * size * 0.92f) + Vector3.up * 0.22f;
             if (camera) directionLabel.transform.rotation = camera.transform.rotation;
         }
     }
@@ -269,6 +301,6 @@ public sealed class AutomationPlayerController : MonoBehaviour
         if (belt && belt.Kind == AutomationMachineKind.Conveyor && belt.TransportSpeed > 0)
             character.Move(belt.transform.forward * belt.TransportSpeed * Time.deltaTime);
     }
-    private void OnDisable() { SetBuilding(false); if (canvas) canvas.enabled = false; }
+    private void OnDisable() { SetBuilding(false); EndRobotConfiguration(false); if (canvas) canvas.enabled = false; }
     private void OnDestroy() { if (previewMaterial) Destroy(previewMaterial); }
 }

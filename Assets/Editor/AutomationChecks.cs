@@ -71,6 +71,37 @@ public static class AutomationChecks
             farming.TryGetFarmingTile(grid, left, out var crop);
             Check(crop.IsWatered, "watering starts existing growth timer");
             Check((int)waterCrops.Invoke(sprinkler, new object[] { farming, grid }) == 0, "repeat watering does not reset crop");
+            var advance = typeof(AutomationBlock).GetMethod("AdvanceSprinkler", flags);
+            Vector3 basePosition = sprinkler.transform.position;
+            Quaternion baseRotation = sprinkler.transform.rotation;
+            advance.Invoke(sprinkler, new object[] { 3f });
+            Check(Mathf.Abs(sprinkler.SprinklerAngle - 90f) < 0.001f, "head rotates 90 degrees in three powered seconds");
+            Check((int)waterCrops.Invoke(sprinkler, new object[] { farming, grid }) == 1 && grid.IsWatered(forward),
+                "rotating jets water crops outside the original row");
+            var head = sprinkler.transform.Find("RotatingHead");
+            Check(head && Mathf.Abs(Mathf.DeltaAngle(head.localEulerAngles.y, sprinkler.SprinklerAngle)) < 0.001f &&
+                sprinkler.transform.position == basePosition && sprinkler.transform.rotation == baseRotation,
+                "head and jets rotate without moving base or supply ports");
+            var ring = new[] { new Vector2Int(27, 25), new Vector2Int(27, 27), new Vector2Int(25, 27), new Vector2Int(23, 27),
+                new Vector2Int(23, 25), new Vector2Int(23, 23), new Vector2Int(25, 23), new Vector2Int(27, 23) };
+            foreach (var cell in ring)
+                if (!farming.TryGetFarmingTile(grid, cell, out _)) farming.TryStartFarming(grid, cell, clock);
+            var outside = new Vector2Int(28, 28); farming.TryStartFarming(grid, outside, clock);
+            advance.Invoke(sprinkler, new object[] { 12f });
+            waterCrops.Invoke(sprinkler, new object[] { farming, grid });
+            Check(ring.All(grid.IsWatered), "a full revolution waters all eight surrounding directions even after a long frame");
+            Check(!grid.IsWatered(outside), "circular radius excludes diagonal crops beyond six metres");
+            Check(Mathf.Abs(sprinkler.SprinklerAngle - 90f) < 0.001f, "full turn wraps angle continuously");
+            Check(head.GetComponentsInChildren<ParticleSystem>().All(p => p.main.simulationSpace == ParticleSystemSimulationSpace.World),
+                "emitted droplets do not rotate around with the head");
+            float stoppedAngle = sprinkler.SprinklerAngle;
+            world.RemoveLine(water); world.RebuildPower(); advance.Invoke(sprinkler, new object[] { 3f });
+            Check(sprinkler.SprinklerAngle == stoppedAngle, "water loss stops rotation");
+            water = Connect(tank, sprinkler);
+            world.RemoveLine(power); world.RebuildPower(); advance.Invoke(sprinkler, new object[] { 3f });
+            Check(sprinkler.SprinklerAngle == stoppedAngle, "power loss stops rotation");
+            power = Connect(generator, sprinkler); world.RebuildPower(); advance.Invoke(sprinkler, new object[] { 1f });
+            Check(Mathf.Abs(sprinkler.SprinklerAngle - 120f) < 0.001f, "restored supplies resume rotation from stopped heading");
             sprinkler.SetSprinklerPassThroughUnlocked(true);
             Check(sprinkler.GetComponent<BoxCollider>().isTrigger && !sprinkler.GetComponent<UnityEngine.AI.NavMeshObstacle>().enabled,
                 "upgrade permits players and navigation while retaining targeting");

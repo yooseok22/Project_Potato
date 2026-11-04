@@ -2,19 +2,34 @@ using System;
 using UnityEngine;
 using UnityEngine.AI;
 
-public enum DogHelperState { Idle, CoveringSoil, ChasingBugs, ChasingBoar, Stunned }
+public enum DogHelperState
+{
+    Idle,
+    CoveringSoil,
+    ChasingBugs,
+    ChasingBoar,
+    Stunned,
+    ReturningToRecovery,
+    Recovering
+}
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(NavMeshAgent))]
-public sealed class DogHelperController : MonoBehaviour
+public sealed class DogHelperController : MonoBehaviour, IDamageable
 {
     [SerializeField] private PotatoFarmingSystem farmingSystem;
+    [Header("Health and Recovery")]
+    [SerializeField, Min(1f)] private float maxHealth = 50f;
+    [SerializeField] private Transform recoveryPoint;
+    [SerializeField, Min(1f)] private float recoveryDurationSeconds = 180f;
+    [SerializeField, Min(0.1f)] private float recoveryArrivalDistance = 0.75f;
+    [Header("Helper Behaviour")]
     [SerializeField, Min(1f)] private float detectionRange = 30f;
     [SerializeField, Min(0.1f)] private float moveSpeed = 4f;
     [SerializeField, Min(0.1f)] private float workDistance = 1.5f;
     [SerializeField, Min(0.1f)] private float barkDistance = 3f;
     [SerializeField, Min(0.1f)] private float barkInterval = 1f;
-    [SerializeField, Min(0f)] private float barkDamage = 10f;
+    [SerializeField, Min(0f)] private float barkDamage = 15f;
     [SerializeField, Min(0.1f)] private float stunDuration = 3f;
     [SerializeField] private AudioSource barkAudio;
     [SerializeField] private AudioClip barkClip;
@@ -22,24 +37,52 @@ public sealed class DogHelperController : MonoBehaviour
     private float nextActionAt;
     private float stunEndsAt;
     private float nextSearchAt;
+    private float recoveryStartedAt;
+    private Vector3 fallbackRecoveryPosition;
     private BoarController boarTarget;
     private PotatoFarmingSystem.FarmingTile cropTarget;
     public DogHelperState State { get; private set; }
     public bool IsStunned => State == DogHelperState.Stunned;
+    public bool IsRecovering => State == DogHelperState.ReturningToRecovery || State == DogHelperState.Recovering;
+    public float CurrentHealth { get; private set; }
+    public float MaxHealth => Mathf.Max(1f, maxHealth);
+    public bool IsDead => CurrentHealth <= 0f;
+    public float RecoveryDurationSeconds => Mathf.Max(1f, recoveryDurationSeconds);
     public event Action Barked;
+    public event Action<float, float> HealthChanged;
 
     private void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
         if (!barkAudio) barkAudio = GetComponent<AudioSource>();
         if (!farmingSystem) farmingSystem = FindAnyObjectByType<PotatoFarmingSystem>();
+        fallbackRecoveryPosition = transform.position;
+        CurrentHealth = MaxHealth;
     }
 
-    public void Initialize(PotatoFarmingSystem system) => farmingSystem = system;
+    public void Initialize(PotatoFarmingSystem system) => Initialize(system, null);
+
+    public void Initialize(PotatoFarmingSystem system, Transform assignedRecoveryPoint)
+    {
+        farmingSystem = system;
+        if (assignedRecoveryPoint) recoveryPoint = assignedRecoveryPoint;
+        fallbackRecoveryPosition = recoveryPoint ? recoveryPoint.position : transform.position;
+        SetHealth(MaxHealth);
+        State = DogHelperState.Idle;
+    }
+
+    public bool TryTakeDamage(float amount)
+    {
+        if (float.IsNaN(amount) || float.IsInfinity(amount) || amount <= 0f || IsDead || IsRecovering)
+            return false;
+        SetHealth(CurrentHealth - amount);
+        if (IsDead) BeginRecovery();
+        return true;
+    }
 
     public bool TryStun()
     {
-        if (IsStunned) return false;
+        if (IsStunned || IsRecovering || IsDead) return false;
         State = DogHelperState.Stunned;
         stunEndsAt = Time.time + stunDuration;
         boarTarget = null;
@@ -50,6 +93,16 @@ public sealed class DogHelperController : MonoBehaviour
 
     private void Update()
     {
+        if (State == DogHelperState.ReturningToRecovery)
+        {
+            if (MoveTo(RecoveryPosition(), recoveryArrivalDistance)) StartRecovery();
+            return;
+        }
+        if (State == DogHelperState.Recovering)
+        {
+            UpdateRecovery();
+            return;
+        }
         if (IsStunned)
         {
             if (Time.time < stunEndsAt) return;
@@ -156,6 +209,42 @@ public sealed class DogHelperController : MonoBehaviour
     private void StopMoving()
     {
         if (agent && agent.enabled && agent.isOnNavMesh) agent.isStopped = true;
+    }
+
+    private Vector3 RecoveryPosition() => recoveryPoint ? recoveryPoint.position : fallbackRecoveryPosition;
+
+    private void BeginRecovery()
+    {
+        boarTarget = null;
+        cropTarget = null;
+        StopMoving();
+        State = DogHelperState.ReturningToRecovery;
+        if (Vector3.Distance(transform.position, RecoveryPosition()) <= recoveryArrivalDistance)
+            StartRecovery();
+    }
+
+    private void StartRecovery()
+    {
+        StopMoving();
+        State = DogHelperState.Recovering;
+        recoveryStartedAt = Time.time;
+    }
+
+    private void UpdateRecovery()
+    {
+        float progress = Mathf.Clamp01((Time.time - recoveryStartedAt) / RecoveryDurationSeconds);
+        SetHealth(MaxHealth * progress);
+        if (progress < 1f) return;
+        State = DogHelperState.Idle;
+        nextSearchAt = 0f;
+    }
+
+    private void SetHealth(float value)
+    {
+        float next = Mathf.Clamp(value, 0f, MaxHealth);
+        if (Mathf.Approximately(CurrentHealth, next)) return;
+        CurrentHealth = next;
+        HealthChanged?.Invoke(CurrentHealth, MaxHealth);
     }
 
     private void ClearTask()
