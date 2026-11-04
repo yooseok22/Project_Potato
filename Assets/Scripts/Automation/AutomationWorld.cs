@@ -16,6 +16,16 @@ public sealed class AutomationWorld : MonoBehaviour
     public float BlockSize => Grids.Length > 0 && Grids[0] ? Grids[0].CellSize : 2f;
     private float nextResolveAt;
     private float nextPowerAt;
+    [SerializeField] private FarmRobotSettings robotSettings;
+    public FarmRobotSettings RobotSettings
+    {
+        get
+        {
+            if (!robotSettings) robotSettings = Resources.Load<FarmRobotSettings>("Automation/FarmRobotSettings");
+            if (!robotSettings) { robotSettings = ScriptableObject.CreateInstance<FarmRobotSettings>(); robotSettings.name = "FarmRobotSettings (runtime defaults)"; robotSettings.hideFlags = HideFlags.DontSave; }
+            return robotSettings;
+        }
+    }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics() { Instance = null; SceneManager.sceneLoaded -= OnSceneLoaded; }
@@ -76,10 +86,28 @@ public sealed class AutomationWorld : MonoBehaviour
         return true;
     }
 
-    public AutomationBlock Place(AutomationMachineKind kind, Vector3 position, Quaternion rotation)
+    public bool TryRobotGround(Vector3 position, out GroundGrid grid)
+    {
+        grid = Grids.FirstOrDefault(candidate => candidate && Mathf.Abs(candidate.Origin.y - position.y) < 0.2f &&
+            candidate.ContainsCell(candidate.WorldToCell(position)));
+        return grid && grid.GetCellState(grid.WorldToCell(position)) == GroundCellState.BasicSoil;
+    }
+
+    public AutomationBlock Place(AutomationMachineKind kind, Vector3 position, Quaternion rotation, FarmRobotSize size = FarmRobotSize.Small)
     {
         if (!CanPlace(position, BlockSize)) return null;
-        return CreateBlock(kind, position, rotation);
+        bool station = kind >= AutomationMachineKind.SeederStation;
+        if (station && !TryRobotGround(position, out _)) return null;
+        var block = CreateBlock(kind, position, rotation);
+        if (station)
+        {
+            TryRobotGround(position, out var grid);
+            var role = kind == AutomationMachineKind.SeederStation ? FarmRobotRole.Seeder :
+                kind == AutomationMachineKind.DroneStation ? FarmRobotRole.SprayerDrone : FarmRobotRole.Mulching;
+            var robot = block.GetComponent<AutomationMachineFactory>().CreateRobotVisual(role, size);
+            block.gameObject.AddComponent<FarmRobotStation>().Initialize(role, size, RobotSettings, grid, robot);
+        }
+        return block;
     }
 
     internal AutomationBlock CreateBlock(AutomationMachineKind kind, Vector3 position, Quaternion rotation)

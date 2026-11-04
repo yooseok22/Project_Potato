@@ -42,6 +42,7 @@ using UnityEngine;
     public bool isMulchingFilmApplied;
     public bool hasBugs, bugSpawnChecked;
     public double bugExpiresAt;
+    public double bugPreventionUntil;
 }
 
 [Serializable] public sealed class FarmSystemData
