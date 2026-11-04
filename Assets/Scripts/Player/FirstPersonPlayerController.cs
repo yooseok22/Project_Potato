@@ -163,6 +163,15 @@ public sealed class FirstPersonPlayerController : MonoBehaviour
         verticalVelocity = 0f;
     }
 
+    public void SetBasketSelectionOpen(bool open)
+    {
+        if (!IsLocallyControlled) return;
+        blocker.SetBlocked(PlayerActionBlockReason.BasketSelection, open);
+        StopMotion();
+        SetCapture(!open && Application.isFocused && !blocker.GameplayBlocked);
+        if (!open) CursorCapturedThisFrame = true; // Consume the closing potato click before tools update.
+    }
+
     private void SetCrouching(bool value)
     {
         if (IsCrouching == value) return;

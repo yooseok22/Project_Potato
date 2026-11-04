@@ -11,7 +11,8 @@ public sealed class StarchBlender : MonoBehaviour, IPlayerInteractable
     public float HoldDuration => 0f;
     public string Prompt => processor == null ? string.Empty : processor.BlenderState switch
     {
-        StarchBlenderState.DockedEmpty => "[E] 뚜껑 열고 감자 넣기 (테스트)",
+        StarchBlenderState.DockedEmpty => "[E] 바구니에서 가공할 감자 선택",
+        StarchBlenderState.AwaitingPotatoes => $"[E] 감자 추가 투입 ({processor.LoadedPotatoCount}/{processor.PotatoesPerBatch})",
         StarchBlenderState.LidOpening => "뚜껑 여는 중",
         StarchBlenderState.LidClosing => "감자 투입 · 뚜껑 닫는 중",
         StarchBlenderState.LoadedReady => "[E] 믹서기 가동",
@@ -37,7 +38,7 @@ public sealed class StarchBlender : MonoBehaviour, IPlayerInteractable
     }
 
     public bool CanInteract(PlayerInteractionController player) => enabled && gameObject.activeInHierarchy && processor &&
-        (processor.BlenderState == StarchBlenderState.DockedEmpty || processor.BlenderState == StarchBlenderState.LoadedReady ||
+        (processor.BlenderState == StarchBlenderState.DockedEmpty || processor.BlenderState == StarchBlenderState.AwaitingPotatoes || processor.BlenderState == StarchBlenderState.LoadedReady ||
          processor.BlenderState == StarchBlenderState.GroundReady || processor.BlenderState == StarchBlenderState.CarriedEmpty);
 
     public void Interact(PlayerInteractionController player)
@@ -45,7 +46,10 @@ public sealed class StarchBlender : MonoBehaviour, IPlayerInteractable
         if (!processor) return;
         switch (processor.BlenderState)
         {
-            case StarchBlenderState.DockedEmpty: processor.TryLoadBlender(); break;
+            case StarchBlenderState.DockedEmpty:
+            case StarchBlenderState.AwaitingPotatoes:
+                player?.GetComponent<BasketProcessingController>()?.TryOpen(processor);
+                break;
             case StarchBlenderState.LoadedReady: processor.TryStartGrinding(); break;
             case StarchBlenderState.GroundReady: processor.TryTakeBlender(player); break;
             case StarchBlenderState.CarriedEmpty: processor.TryReturnBlender(player); break;

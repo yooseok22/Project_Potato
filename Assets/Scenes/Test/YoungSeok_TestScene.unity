@@ -20508,6 +20508,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1419936541}
   - component: {fileID: 1419936540}
+  - component: {fileID: 1419936542}
   m_Layer: 0
   m_Name: PotatoStarchTestSetup
   m_TagString: Untagged
@@ -20557,6 +20558,19 @@ Transform:
   - {fileID: 2290107850981084359}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1419936542
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1419936539}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a56a9608b605f73499059f0f6cb6015b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SaveIdentity
+  id: a00cd62ffdff48648fe266f6c1fb9745
 --- !u!1 &1422341918
 GameObject:
   m_ObjectHideFlags: 0

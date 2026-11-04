@@ -122,6 +122,17 @@ public sealed class ProcessingCarryItem : MonoBehaviour, IPlayerHeldItem
     }
     public bool TryThrow(PlayerItemActionContext context) => false;
 
+    public void RestorePlacedAt(Transform anchor)
+    {
+        ResetHome();
+        carryRig?.Detach();
+        transform.SetParent(anchor, false);
+        transform.localPosition = Vector3.zero;
+        transform.localRotation = Quaternion.identity;
+        transform.localScale = homeLocalScale;
+        RestoreColliders();
+    }
+
     private void LateUpdate()
     {
         if (currentItems && handSocket) UpdateHandSocket();

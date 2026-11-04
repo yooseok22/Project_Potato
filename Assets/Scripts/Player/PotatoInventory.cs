@@ -4,6 +4,20 @@ using System.IO;
 using System.Text;
 using UnityEngine;
 
+/// <summary>A runtime identity for one potato, even when its properties match another potato.</summary>
+public sealed class BasketPotato
+{
+    private static long nextId;
+    public long Id { get; } = System.Threading.Interlocked.Increment(ref nextId);
+    public PotatoHarvestGrade Grade { get; }
+    public HarvestedPotatoCondition Conditions { get; }
+    public bool CanProcess => Conditions == HarvestedPotatoCondition.None &&
+        Grade >= PotatoHarvestGrade.OneStar && Grade <= PotatoHarvestGrade.ThreeStar;
+    public string DisplayName => new PotatoStack { grade = Grade, conditions = Conditions }.DisplayName;
+    public BasketPotato(PotatoHarvestGrade grade, HarvestedPotatoCondition conditions)
+    { Grade = grade; Conditions = conditions; }
+}
+
 [Serializable]
 public sealed class PotatoStack
 {
@@ -27,6 +41,9 @@ public sealed class PotatoInventory : IInventorySaveTarget
 
     private const HarvestedPotatoCondition AllowedConditions = PotatoHarvestConditionRules.Harvestable | HarvestedPotatoCondition.Rotten;
     private readonly List<PotatoStack> stacks = new();
+    private readonly List<BasketPotato> potatoes = new();
+    public IReadOnlyList<BasketPotato> Potatoes => potatoes.AsReadOnly();
+    public int Revision { get; private set; }
     public string OwnerId { get; }
     public int Capacity { get; }
     public int Count { get; private set; }
@@ -65,13 +82,44 @@ public sealed class PotatoInventory : IInventorySaveTarget
             var stack = stacks[i];
             int amount = Math.Min(stack.quantity, remaining);
             destination.AddUnchecked(stack.grade, stack.conditions, amount);
+            int toRemove = amount;
+            for (int item = 0; item < potatoes.Count && toRemove > 0;)
+                if (potatoes[item].Grade == stack.grade && potatoes[item].Conditions == stack.conditions)
+                { potatoes.RemoveAt(item); toRemove--; }
+                else item++;
             stack.quantity -= amount;
             Count -= amount;
             remaining -= amount;
             if (stack.quantity == 0) stacks.RemoveAt(i);
             else i++;
         }
+        if (moved > 0) Revision++;
         return moved;
+    }
+
+    public BasketPotato FindPotato(long id) => potatoes.Find(p => p.Id == id);
+
+    /// <summary>Commit one removal, preserving the exact identities and ordering if persistence fails.</summary>
+    public bool TryConsume(long id, Func<bool> commit)
+    {
+        int itemIndex = potatoes.FindIndex(p => p.Id == id);
+        if (itemIndex < 0 || commit == null) return false;
+        var item = potatoes[itemIndex];
+        int stackIndex = stacks.FindIndex(s => s.grade == item.Grade && s.conditions == item.Conditions);
+        var stack = stacks[stackIndex];
+        potatoes.RemoveAt(itemIndex);
+        stack.quantity--;
+        if (stack.quantity == 0) stacks.RemoveAt(stackIndex);
+        Count--;
+        Revision++;
+        try { if (commit()) return true; }
+        catch (Exception error) { Debug.LogWarning("[Potato Storage] " + error.Message); }
+        if (stack.quantity == 0) stacks.Insert(stackIndex, stack);
+        stack.quantity++;
+        potatoes.Insert(itemIndex, item);
+        Count++;
+        Revision++;
+        return false;
     }
 
     public InventoryData CaptureInventory()
@@ -89,8 +137,10 @@ public sealed class PotatoInventory : IInventorySaveTarget
     {
         var replacement = ReadInventory(data); // Validate everything before changing the live inventory.
         stacks.Clear();
+        potatoes.Clear();
         Count = 0;
         foreach (var stack in replacement) AddUnchecked(stack.grade, stack.conditions, stack.quantity);
+        Revision++;
     }
 
     public string Describe(string label)
@@ -134,5 +184,7 @@ public sealed class PotatoInventory : IInventorySaveTarget
         if (stack == null) stacks.Add(new PotatoStack { grade = grade, conditions = conditions, quantity = quantity });
         else stack.quantity += quantity;
         Count += quantity;
+        for (int i = 0; i < quantity; i++) potatoes.Add(new BasketPotato(grade, conditions));
+        Revision++;
     }
 }

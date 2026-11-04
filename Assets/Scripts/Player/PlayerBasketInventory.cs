@@ -21,10 +21,32 @@ public sealed class PlayerBasketInventory : MonoBehaviour
 
     private void Update()
     {
-        if (player && player.CanUseGameplayInput && Keyboard.current != null && Keyboard.current.iKey.wasPressedThisFrame) PrintInventory();
+        if (!player || !player.CanUseGameplayInput || Keyboard.current == null) return;
+        var keyboard = Keyboard.current;
+        if (keyboard.iKey.wasPressedThisFrame) PrintInventory();
+        if (keyboard.digit0Key.wasPressedThisFrame || keyboard.numpad0Key.wasPressedThisFrame) TryFillDebugBasket();
     }
 
     public void PrintInventory() => Debug.Log(Inventory.Describe("바구니"), this);
+
+    [ContextMenu("Debug/Fill Basket with Random Potatoes")]
+    public void TryFillDebugBasket()
+    {
+        if (!Application.isPlaying || !IsLocalPlayer) return;
+        if (!persistence) persistence = FindAnyObjectByType<PotatoStorageSaveAdapter>();
+        if (!persistence || !persistence.IsReady || !persistence.IsOffline)
+        {
+            Debug.LogWarning("[바구니 테스트] 저장 연결이 준비되지 않았습니다.", this);
+            return;
+        }
+        if (!PotatoStorageService.TryFillDebugBasket(Inventory, persistence.SaveActive, out int added, out string error))
+        {
+            Debug.Log("[바구니 테스트] " + error, this);
+            return;
+        }
+        Debug.Log($"[바구니 테스트] 랜덤 감자 {added}개 추가. {Inventory.Count}/{BasketCapacity}", this);
+        PrintInventory();
+    }
 
     public bool TryHarvest(PotatoHarvestCoordinator harvest, GroundGrid ground, Vector2Int cell)
     {
