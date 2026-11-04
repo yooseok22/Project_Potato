@@ -4,7 +4,7 @@ using UnityEngine;
 public enum StarchBlenderState : byte
 {
     DockedEmpty, LidOpening, LidClosing, LoadedReady, Starting, Working, Ending,
-    GroundReady, CarriedFull, CarriedEmpty
+    GroundReady, CarriedFull, CarriedEmpty, AwaitingPotatoes
 }
 public enum StarchSieveState : byte
 {
@@ -16,7 +16,7 @@ public enum StarchTrayState : byte { InstalledEmpty, InstalledWet, CarriedWet, D
 public enum StarchWaterBasketState : byte { Docked, Lowered, Carried }
 
 [DisallowMultipleComponent]
-public sealed class PotatoStarchProcessor : MonoBehaviour
+public sealed partial class PotatoStarchProcessor : MonoBehaviour
 {
     private const string Prefix = "[PotatoStarch] ";
     [SerializeField] private WorldClock clock;
@@ -51,6 +51,10 @@ public sealed class PotatoStarchProcessor : MonoBehaviour
     public int LastProducedPackCount { get; private set; }
     public int TotalProducedPackCount { get; private set; }
     public int RemainingPackCount { get; private set; }
+    public int LoadedPotatoCount { get; private set; }
+    public int PotatoesPerBatch => potatoesPerBatch;
+    public bool CanReceivePotato => BlenderState == StarchBlenderState.AwaitingPotatoes &&
+        SieveState == StarchSieveState.Filling && LoadedPotatoCount < potatoesPerBatch;
     public float PackagingDuration => packagingSeconds;
     public float PackagingSecondsRemaining => (float)Math.Max(0d, packagingEndsAt - Now);
     public double HandlesDuration => Math.Max(MakerLength(StarchAnimationId.HandleOne), MakerLength(StarchAnimationId.HandleTwo));
@@ -70,6 +74,7 @@ public sealed class PotatoStarchProcessor : MonoBehaviour
     private void Start()
     {
         EnsureInitialized();
+        BindPersistence();
         Log($"설비 준비. 분쇄={GrindingDuration:0.###}초, 전분 배출={DrainingDuration:0.###}초, 건조={dryingSeconds:0.#}초");
     }
     private void Update()
@@ -132,6 +137,7 @@ public sealed class PotatoStarchProcessor : MonoBehaviour
     public bool TryLoadBlender()
     {
         EnsureInitialized();
+        if (CanReceivePotato) return true;
         if (BlenderState != StarchBlenderState.DockedEmpty || SieveState != StarchSieveState.Filling)
             return Fail("감자 투입 실패: 설비가 준비되지 않음");
         BlenderState = StarchBlenderState.LidOpening;
@@ -140,10 +146,29 @@ public sealed class PotatoStarchProcessor : MonoBehaviour
         Log("믹서기 뚜껑 열기 시작");
         return true;
     }
+    internal bool AcceptPotato(BasketPotato potato)
+    {
+        if (potato == null || !potato.CanProcess || !CanReceivePotato) return false;
+        LoadedPotatoCount++;
+        Log($"{potato.DisplayName} 1개 투입. {LoadedPotatoCount}/{potatoesPerBatch}");
+        if (LoadedPotatoCount == potatoesPerBatch)
+        {
+            BlenderState = StarchBlenderState.LidClosing;
+            blenderStartedAt = Now;
+            blenderAnimation.SetTime(StarchAnimationId.BlenderClose, 0d);
+        }
+        return true;
+    }
+    internal void RestoreLoadingCount(int count)
+    {
+        LoadedPotatoCount = count;
+        BlenderState = StarchBlenderState.AwaitingPotatoes;
+        blenderAnimation.SetTime(StarchAnimationId.BlenderOpen, BlenderLength(StarchAnimationId.BlenderOpen));
+    }
     public bool TryStartGrinding()
     {
         EnsureInitialized();
-        if (BlenderState != StarchBlenderState.LoadedReady || SieveState != StarchSieveState.Filling)
+        if (BlenderState != StarchBlenderState.LoadedReady || SieveState != StarchSieveState.Filling || LoadedPotatoCount != potatoesPerBatch)
             return Fail("믹서기 가동 실패: 감자 투입과 뚜껑 닫기가 완료되어야 함");
         BlenderState = StarchBlenderState.Starting;
         blenderStartedAt = Now;
@@ -179,6 +204,7 @@ public sealed class PotatoStarchProcessor : MonoBehaviour
         if (player && !blender.CarryItem.TryReturnHome(player)) return Fail("믹서기 복귀 실패: 손의 믹서기를 확인할 수 없음");
         blenderAnimation.ResetPose();
         BlenderState = StarchBlenderState.DockedEmpty;
+        LoadedPotatoCount = 0;
         Log("빈 믹서기 통·뚜껑 원위치 및 초기 자세 복원");
         return true;
     }
@@ -331,6 +357,7 @@ public sealed class PotatoStarchProcessor : MonoBehaviour
         WaterBasketState = StarchWaterBasketState.Docked;
         waterBasket?.RefreshCollider();
         SieveFillCount = 0;
+        LoadedPotatoCount = 0;
         RemainingPackCount = 0;
         blenderStartedAt = makerStartedAt = dryingEndsAt = nextDryingLogAt = 0d;
     }
@@ -358,8 +385,8 @@ public sealed class PotatoStarchProcessor : MonoBehaviour
             switch (BlenderState)
             {
                 case StarchBlenderState.LidOpening:
-                    Log($"감자 {potatoesPerBatch}개 소비(테스트). 뚜껑 닫기");
-                    BlenderState = StarchBlenderState.LidClosing; break;
+                    Log($"뚜껑 열기 완료. 감자를 선택해 투입하세요. {LoadedPotatoCount}/{potatoesPerBatch}");
+                    BlenderState = StarchBlenderState.AwaitingPotatoes; break;
                 case StarchBlenderState.LidClosing: BlenderState = StarchBlenderState.LoadedReady; Log("뚜껑 닫기 완료. [E] 가동 대기"); break;
                 case StarchBlenderState.Starting: BlenderState = StarchBlenderState.Working; break;
                 case StarchBlenderState.Working: BlenderState = StarchBlenderState.Ending; break;

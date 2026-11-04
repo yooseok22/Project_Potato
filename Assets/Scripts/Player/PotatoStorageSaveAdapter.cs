@@ -9,7 +9,7 @@ using UnityEngine;
 public sealed class PotatoStorageSaveAdapter : MonoBehaviour
 {
     [SerializeField, Range(1, 2)] private int activeSlot = 1;
-    private readonly HashSet<PotatoInventory> bound = new();
+    private readonly HashSet<IInventorySaveTarget> bound = new();
     private SaveGameController controller;
     public int ActiveSlot => activeSlot;
     public bool IsReady { get; private set; }
@@ -30,6 +30,7 @@ public sealed class PotatoStorageSaveAdapter : MonoBehaviour
             foreach (var basket in FindObjectsByType<PlayerBasketInventory>(FindObjectsInactive.Include, FindObjectsSortMode.None))
                 if (basket.IsLocalPlayer) Register(basket.Inventory);
             foreach (var shelf in FindObjectsByType<WarehouseShelf>(FindObjectsInactive.Include, FindObjectsSortMode.None)) Register(shelf.Inventory);
+            foreach (var processor in FindObjectsByType<PotatoStarchProcessor>(FindObjectsInactive.Include, FindObjectsSortMode.None)) Register(processor);
             if (!IsOffline) return Fail("감자 보관 테스트는 오프라인 세션에서 사용하세요.");
             if (controller.Slots.Exists(activeSlot) && !controller.Load(activeSlot)) return Fail(controller.LastError);
             IsReady = true;
@@ -39,14 +40,14 @@ public sealed class PotatoStorageSaveAdapter : MonoBehaviour
         catch (Exception error) { return Fail(error.Message); }
     }
 
-    public void Register(PotatoInventory inventory)
+    public void Register(IInventorySaveTarget inventory)
     {
         if (!controller || inventory == null || bound.Contains(inventory)) return;
         controller.Inventories.Bind(inventory);
         bound.Add(inventory);
     }
 
-    public void Unregister(PotatoInventory inventory)
+    public void Unregister(IInventorySaveTarget inventory)
     {
         if (!controller || inventory == null || !bound.Remove(inventory)) return;
         controller.Inventories.Unbind(inventory);

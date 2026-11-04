@@ -285,7 +285,11 @@ public static class PotatoStarchProcessingChecks
                 Check(p.TryLoadBlender(), "load batch " + batch);
                 Check(!p.TryLoadBlender() && !p.TryTakeBlender(null), "opening blocks duplicate load and pickup");
                 clock.AdvanceBy(p.BlenderAnimation.Length(StarchAnimationId.BlenderOpen));
-                Check(p.BlenderState == StarchBlenderState.LidClosing, "open complete");
+                Check(p.BlenderState == StarchBlenderState.AwaitingPotatoes, "open waits for actual potatoes");
+                var batchBasket = new PotatoInventory("batch-test", 10);
+                batchBasket.TryAdd(PotatoHarvestGrade.OneStar, HarvestedPotatoCondition.None, p.PotatoesPerBatch);
+                for (int potato = 0; potato < p.PotatoesPerBatch; potato++)
+                    Check(PotatoProcessingService.TryInsert(batchBasket, batchBasket.Potatoes[0].Id, p, () => true, out _), "consume actual batch potato");
                 clock.AdvanceBy(p.BlenderAnimation.Length(StarchAnimationId.BlenderClose));
                 Check(p.BlenderState == StarchBlenderState.LoadedReady, "closed waits for E");
                 Check(p.TryStartGrinding(), "start batch");
@@ -435,6 +439,12 @@ public static class PotatoStarchProcessingChecks
             Check(!p.TryReturnWaterBasket(player) && p.SieveFillCount == 0 && p.TrayState == StarchTrayState.InstalledEmpty,
                 "fresh E resets exactly once after empty drop");
             Check(p.TryLoadBlender(), "second cycle can start");
+            clock.AdvanceBy(100d);
+            Check(p.BlenderState == StarchBlenderState.AwaitingPotatoes, "time cannot fabricate potatoes");
+            var nextBasket = new PotatoInventory("next-batch", 10);
+            nextBasket.TryAdd(PotatoHarvestGrade.TwoStar, HarvestedPotatoCondition.None, p.PotatoesPerBatch);
+            for (int potato = 0; potato < p.PotatoesPerBatch; potato++)
+                Check(PotatoProcessingService.TryInsert(nextBasket, nextBasket.Potatoes[0].Id, p, () => true, out _), "next real potato");
             clock.AdvanceBy(100d);
             Check(p.BlenderState == StarchBlenderState.LoadedReady, "time skip stops at input gate");
             Check(p.TryStartGrinding(), "second cycle start");

@@ -9,7 +9,8 @@ public enum PlayerActionBlockReason
     Tablet = 1 << 1,
     InteractionHold = 1 << 2,
     Cooking = 1 << 3,
-    Stunned = 1 << 4
+    Stunned = 1 << 4,
+    BasketSelection = 1 << 5
 }
 
 public sealed class PlayerActionBlocker : MonoBehaviour
@@ -17,7 +18,7 @@ public sealed class PlayerActionBlocker : MonoBehaviour
     public PlayerActionBlockReason ActiveReasons { get; private set; }
     public bool GameplayBlocked => (ActiveReasons & ~PlayerActionBlockReason.InteractionHold) != 0;
     public bool CanDrop => (ActiveReasons & (PlayerActionBlockReason.Settings | PlayerActionBlockReason.Tablet |
-        PlayerActionBlockReason.InteractionHold | PlayerActionBlockReason.Cooking | PlayerActionBlockReason.Stunned)) == 0;
+        PlayerActionBlockReason.InteractionHold | PlayerActionBlockReason.Cooking | PlayerActionBlockReason.Stunned | PlayerActionBlockReason.BasketSelection)) == 0;
 
     public void SetBlocked(PlayerActionBlockReason reason, bool blocked)
     {
