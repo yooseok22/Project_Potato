@@ -331,7 +331,8 @@ public sealed partial class PotatoFarmingSystem : MonoBehaviour
         if (stage == PotatoGrowthStage.TwoLargeLeaves && !tile.BugSpawnChecked)
         {
             tile.BugSpawnChecked = true;
-            if (UnityEngine.Random.value < bugSpawnChance)
+            double spawnTime = clock.ElapsedSeconds - Math.Max(0d, tile.AgeSeconds - 80d);
+            if (tile.BugPreventionUntil <= spawnTime && UnityEngine.Random.value < bugSpawnChance)
             {
                 tile.HasBugs = true;
                 // A time skip must not grant another 150 seconds from the end of the skip.

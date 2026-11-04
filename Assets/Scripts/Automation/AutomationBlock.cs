@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public enum AutomationMachineKind { Generator, WaterTank, Sprinkler, Conveyor }
+public enum AutomationMachineKind { Generator, WaterTank, Sprinkler, Conveyor, SeederStation, DroneStation, MulchingStation }
 public enum AutomationSupplyKind { Electricity, Water }
 
 /// <summary>A grid-sized machine. Supply values are recomputed by AutomationWorld.</summary>
@@ -30,6 +30,7 @@ public sealed class AutomationBlock : MonoBehaviour
     public float SprinklerAngle => sprinklerAngle;
 
     public AutomationMachineKind Kind => kind;
+    public bool IsRobotStation => kind >= AutomationMachineKind.SeederStation;
     public float BlockSize => blockSize;
     public int OutletCount => kind == AutomationMachineKind.Generator ? 3 : kind == AutomationMachineKind.WaterTank ? 4 : 0;
     public AutomationSupplyKind SupplyKind => kind == AutomationMachineKind.WaterTank ? AutomationSupplyKind.Water : AutomationSupplyKind.Electricity;
@@ -40,14 +41,17 @@ public sealed class AutomationBlock : MonoBehaviour
     public float PowerFraction { get; internal set; }
     public bool HasWater { get; internal set; }
     public bool IsOperating => kind == AutomationMachineKind.Sprinkler ? PowerFraction >= 0.999f && HasWater :
-        kind == AutomationMachineKind.Conveyor && PowerFraction > 0f;
-    public float TransportSpeed => IsOperating ? conveyorSpeed * PowerFraction : 0f;
+        kind == AutomationMachineKind.Conveyor ? PowerFraction > 0f : IsRobotStation && PowerFraction >= 0.999f;
+    public float TransportSpeed => kind == AutomationMachineKind.Conveyor && IsOperating ? conveyorSpeed * PowerFraction : 0f;
     public Vector3 PortPosition => transform.position + Vector3.up * (kind == AutomationMachineKind.Conveyor ? 0.18f : 0.55f);
     public string DisplayName => kind switch
     {
         AutomationMachineKind.Generator => "발전기",
         AutomationMachineKind.WaterTank => "물탱크",
         AutomationMachineKind.Sprinkler => "스프링클러",
+        AutomationMachineKind.SeederStation => "감자 파종 로봇 충전소",
+        AutomationMachineKind.DroneStation => "방제 드론 충전소",
+        AutomationMachineKind.MulchingStation => "멀칭 로봇 충전소",
         _ => "작물 이동 레일"
     };
 
@@ -60,7 +64,7 @@ public sealed class AutomationBlock : MonoBehaviour
 
     public bool Accepts(AutomationSupplyKind supply) => supply == AutomationSupplyKind.Water
         ? kind == AutomationMachineKind.Sprinkler
-        : kind == AutomationMachineKind.Sprinkler || kind == AutomationMachineKind.Conveyor;
+        : kind == AutomationMachineKind.Sprinkler || kind == AutomationMachineKind.Conveyor || IsRobotStation;
 
     public void SetSprinklerPassThroughUnlocked(bool unlocked)
     {
