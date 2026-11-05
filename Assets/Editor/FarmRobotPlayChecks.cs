@@ -14,7 +14,6 @@ public static class FarmRobotPlayChecks
     private static bool stopped;
     private static bool seederLeft, droneLeft, detourLeft;
     private static bool seederHome, droneHome, detourHome;
-    private static GameObject blocker;
     private static GameObject returnBlocker;
     private static bool detouredOffLine;
     private static readonly BindingFlags Flags = BindingFlags.Instance | BindingFlags.NonPublic;
@@ -32,7 +31,7 @@ public static class FarmRobotPlayChecks
         if (Application.isPlaying) throw new InvalidOperationException("Stop Play mode before running the temporary robot fixture.");
         EditorApplication.update -= Update;
         fixture = null; stopped = false; seederLeft = droneLeft = detourLeft = false;
-        blocker = returnBlocker = null; detouredOffLine = false;
+        returnBlocker = null; detouredOffLine = false;
         seederHome = droneHome = detourHome = false;
         began = EditorApplication.timeSinceStartup;
         SessionState.SetBool("FarmRobotPlayCheckPending", true);
@@ -57,13 +56,6 @@ public static class FarmRobotPlayChecks
             }
             if (!seeder || !drone || !detour) throw new Exception("Robot fixture was unexpectedly removed.");
             seederLeft |= !seeder.IsAtDock; droneLeft |= !drone.IsAtDock; detourLeft |= !detour.IsAtDock;
-            if (detourLeft && !blocker)
-            {
-                blocker = GameObject.CreatePrimitive(PrimitiveType.Cube); blocker.name = "RobotDetourObstacle";
-                blocker.transform.SetParent(fixture.transform);
-                blocker.transform.position = grid.CellCenter(new Vector2Int(20, 9)) + Vector3.up * 0.7f;
-                blocker.transform.localScale = new Vector3(1.5f, 1.4f, 1.5f); Physics.SyncTransforms();
-            }
             if (detour.WorkedThisTrip >= 3 && !returnBlocker)
             {
                 returnBlocker = GameObject.CreatePrimitive(PrimitiveType.Cube); returnBlocker.name = "RobotReturnDetourObstacle";
@@ -85,7 +77,11 @@ public static class FarmRobotPlayChecks
                 var farming = fixture.GetComponent<PotatoFarmingSystem>();
                 if (!farming.TryGetFarmingTile(grid, new Vector2Int(12, 8), out var crop) || !crop.HasBugPrevention)
                     throw new Exception("Live drone did not apply prevention.");
-                Debug.Log("[Farm Robots Play] PASS: detached bent/branching range, actual seeding, red-cell skip, powered charging, drone prevention and landing, obstacle detection and grid detour home.");
+                if (!grid.HasPotato(new Vector2Int(20, 12)) || detour.WorkedThisTrip != 4 ||
+                    grid.HasPotato(new Vector2Int(20, 7)) || grid.HasPotato(new Vector2Int(20, 9)) || grid.HasPotato(new Vector2Int(20, 11)) ||
+                    grid.HasPotato(new Vector2Int(19, 8)))
+                    throw new Exception("Robot failed to continue beyond installed machines, or worked on an obstacle/detour tile.");
+                Debug.Log("[Farm Robots Play] PASS: generator/tank/sprinkler detours continue work, occupied cells skipped, detours never plant, detached branching range, charging, drone prevention and return-home detour.");
                 End();
             }
             else if (EditorApplication.timeSinceStartup - began > 45)
@@ -133,6 +129,9 @@ public static class FarmRobotPlayChecks
         drone.ConfigureAreas(new[] { new FarmDroneArea { minimum = new Vector2Int(11, 7), maximum = new Vector2Int(13, 9) } });
         detour = Station(AutomationMachineKind.SeederStation, new Vector2Int(20, 5));
         var detourRoute = new FarmRobotRoute(); detourRoute.TrySetEnd(new Vector2Int(20, 6), new Vector2Int(20, 12), grid.ContainsCell); detour.ConfigureRoute(detourRoute);
+        foreach (var entry in new[] { (AutomationMachineKind.Generator, 7), (AutomationMachineKind.WaterTank, 9), (AutomationMachineKind.Sprinkler, 11) })
+            if (!world.Place(entry.Item1, grid.CellCenter(new Vector2Int(20, entry.Item2)), Quaternion.identity))
+                throw new Exception("Fixture machine obstacle placement failed.");
         Physics.SyncTransforms(); world.RebuildPower();
     }
 }

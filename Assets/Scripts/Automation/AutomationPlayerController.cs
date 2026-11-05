@@ -70,9 +70,9 @@ public sealed partial class AutomationPlayerController : MonoBehaviour
         if (keyboard.rKey.wasPressedThisFrame) rotation = (rotation + 1) % 4;
         bool hasHit = Aim(out var hit);
         var target = hasHit ? hit.collider.GetComponentInParent<AutomationBlock>() : null;
-        bool ground = hasHit && !target && hit.normal.y >= 0.9f && !hit.collider.attachedRigidbody;
-        Vector3 position = ground ? world.Snap(hit.point) : Vector3.zero;
-        bool supported = ground && Supported(position, world.BlockSize, out position);
+        Vector3 position = Vector3.zero;
+        bool ground = hasHit && !target && TryPlacementSurface(world, selected, hit, out position);
+        bool supported = ground;
         bool valid = supported && world.CanPlace(position, world.BlockSize) && (!robotStation || world.TryRobotGround(position, out _));
         UpdatePreview(position, world.BlockSize, valid, ground && !heldLine);
         var mouse = Mouse.current;
@@ -154,6 +154,22 @@ public sealed partial class AutomationPlayerController : MonoBehaviour
             distance = hit.distance; closest = hit;
         }
         return distance < float.PositiveInfinity;
+    }
+
+    internal static bool TryPlacementSurface(AutomationWorld world, AutomationMachineKind kind, RaycastHit hit, out Vector3 position)
+    {
+        position = Vector3.zero;
+        if (!hit.collider || hit.collider.attachedRigidbody || hit.collider.GetComponentInParent<AutomationBlock>()) return false;
+        // Tilled tile meshes have ridges and slopes. Their logical grid surface is still buildable.
+        if (kind == AutomationMachineKind.Sprinkler && hit.collider.GetComponentInParent<GroundTileRenderer>() is { } renderer)
+        {
+            var grid = renderer.GetComponent<GroundGrid>();
+            if (grid && Array.IndexOf(world.Grids, grid) >= 0 && grid.ContainsCell(grid.WorldToCell(hit.point)))
+            { position = grid.CellCenter(grid.WorldToCell(hit.point)); return true; }
+        }
+        if (hit.normal.y < 0.9f) return false;
+        position = world.Snap(hit.point);
+        return Supported(position, world.BlockSize, out position);
     }
 
     private static bool Supported(Vector3 center, float size, out Vector3 adjusted)

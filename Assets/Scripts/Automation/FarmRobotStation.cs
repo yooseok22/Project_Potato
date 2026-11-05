@@ -5,7 +5,7 @@ using UnityEngine;
 
 public enum FarmRobotState { Docked, Charging, Outbound, Working, Returning, WaitingForReturnPath, TravellingToRoute }
 
-/// <summary>A charged trip always ends at its own dock. Normal ground travel follows the configured line both ways.</summary>
+/// <summary>A charged trip visits the connected work tiles and returns to its dock, detouring around obstacles.</summary>
 [RequireComponent(typeof(AutomationBlock))]
 public sealed class FarmRobotStation : MonoBehaviour, IPlayerInteractable
 {
@@ -180,7 +180,9 @@ public sealed class FarmRobotStation : MonoBehaviour, IPlayerInteractable
             if (role != FarmRobotRole.SprayerDrone)
             {
                 tripRoute = route.BuildRoundTrip();
-                if (!PlanPath(route.Cells[0]))
+                while (routeIndex < tripRoute.Count &&
+                    (!CellClear(tripRoute[routeIndex].Cell) || !PlanPath(tripRoute[routeIndex].Cell))) routeIndex++;
+                if (routeIndex >= tripRoute.Count)
                 {
                     State = FarmRobotState.Docked; LastNotice = "작업 경로로 가는 길이 막혀 있습니다."; return;
                 }
@@ -212,6 +214,8 @@ public sealed class FarmRobotStation : MonoBehaviour, IPlayerInteractable
     {
         if (routeIndex >= tripRoute.Count) { approachingRoute = false; emergency = true; PlanEmergencyReturn(); return; }
         var cell = tripRoute[routeIndex].Cell;
+        if (!CellClear(cell)) { SkipBlockedWorkCell(); return; }
+        if (!ClearSegment(robot.position, CellPosition(cell))) { PlanWorkApproach(); return; }
         if (!Move(CellPosition(cell), deltaTime)) return;
         if (route.WorksAt(cell) && CanWork(cell))
         { workingCell = cell; workRemaining = Profile.workSeconds; State = FarmRobotState.Working; return; }
@@ -221,6 +225,18 @@ public sealed class FarmRobotStation : MonoBehaviour, IPlayerInteractable
     {
         routeIndex++;
         State = routeIndex < tripRoute.Count && !tripRoute[routeIndex].Returning ? FarmRobotState.Outbound : FarmRobotState.Returning;
+    }
+    private void SkipBlockedWorkCell()
+    {
+        LastNotice = "설치물 또는 장애물로 접근할 수 없는 작업 칸을 건너뜁니다.";
+        approachingRoute = false; emergency = false; emergencyPath.Clear(); StepRoute();
+    }
+    private void PlanWorkApproach()
+    {
+        if (routeIndex >= tripRoute.Count || !CellClear(tripRoute[routeIndex].Cell) || !PlanPath(tripRoute[routeIndex].Cell))
+        { SkipBlockedWorkCell(); return; }
+        LastNotice = "설치물 또는 장애물을 우회하여 작업을 계속합니다.";
+        approachingRoute = true; emergency = true; State = FarmRobotState.TravellingToRoute;
     }
     private void TickDrone(float deltaTime)
     {
@@ -249,7 +265,12 @@ public sealed class FarmRobotStation : MonoBehaviour, IPlayerInteractable
     private bool Move(Vector3 target, float deltaTime)
     {
         Vector3 next = Vector3.MoveTowards(robot.position, target, Profile.moveSpeed * deltaTime);
-        if (!ClearSegment(robot.position, next)) { ReturnEarly("이동 경로에 장애물이 있어 우회 복귀"); return false; }
+        if (!ClearSegment(robot.position, next))
+        {
+            if (role != FarmRobotRole.SprayerDrone && (!emergency || approachingRoute)) PlanWorkApproach();
+            else ReturnEarly("이동 경로에 장애물이 있어 우회 복귀");
+            return false;
+        }
         Vector3 directionToTarget = target - robot.position;
         if (new Vector2(directionToTarget.x, directionToTarget.z).sqrMagnitude > 0.001f)
             robot.rotation = Quaternion.LookRotation(new Vector3(directionToTarget.x, 0, directionToTarget.z));
@@ -324,6 +345,7 @@ public sealed class FarmRobotStation : MonoBehaviour, IPlayerInteractable
             if (Move(DockPosition, deltaTime)) ArriveHome();
             return;
         }
+        if (approachingRoute && !CellClear(tripRoute[routeIndex].Cell)) { SkipBlockedWorkCell(); return; }
         if (Move(emergencyPath[emergencyIndex], deltaTime)) emergencyIndex++;
     }
 }

@@ -55,6 +55,25 @@ public static class FarmRobotChecks
             Check(settings.small.maxWorkCells == 10 && settings.medium.maxWorkCells == 25 && settings.large.maxWorkCells == 60, "approved work quotas");
             Check(settings.small.chargeSeconds == 60 && settings.medium.chargeSeconds == 90 && settings.large.chargeSeconds == 120, "approved charge durations");
 
+            // A sloped ridge represents a tilled tile surface; validate the same helper used by the build preview.
+            var groundRenderer = root.AddComponent<GroundTileRenderer>();
+            var ridge = new GameObject("TilledSoilRidge"); ridge.transform.SetParent(root.transform);
+            var tilledCell = new Vector2Int(30, 30); grid.TryDig(tilledCell);
+            ridge.transform.position = grid.CellCenter(tilledCell); ridge.transform.rotation = Quaternion.Euler(35, 0, 0);
+            var ridgeCollider = ridge.AddComponent<BoxCollider>(); ridgeCollider.size = new Vector3(2, 0.1f, 2);
+            Check(ridgeCollider.Raycast(new Ray(grid.CellCenter(tilledCell) + Vector3.up * 2, Vector3.down), out var ridgeHit, 4) &&
+                ridgeHit.normal.y < 0.9f, "tilled ridge reproduces non-flat surface");
+            var placement = typeof(AutomationPlayerController).GetMethod("TryPlacementSurface", BindingFlags.Static | BindingFlags.NonPublic);
+            object[] placementArgs = { world, AutomationMachineKind.Sprinkler, ridgeHit, Vector3.zero };
+            Check((bool)placement.Invoke(null, placementArgs) && (Vector3)placementArgs[3] == grid.CellCenter(tilledCell),
+                "sprinkler preview accepts tilled ridges at logical grid height");
+            var fieldSprinkler = world.Place(AutomationMachineKind.Sprinkler, (Vector3)placementArgs[3], Quaternion.identity);
+            Check(fieldSprinkler && grid.GetCellState(tilledCell) == GroundCellState.FieldSoil,
+                "sprinkler can be placed on tilled soil without changing soil state");
+            Check(!world.Place(AutomationMachineKind.Sprinkler, (Vector3)placementArgs[3], Quaternion.identity), "tilled placement still rejects overlapping machines");
+            UnityEngine.Object.DestroyImmediate(fieldSprinkler.gameObject);
+            UnityEngine.Object.DestroyImmediate(ridge); UnityEngine.Object.DestroyImmediate(groundRenderer);
+
             var dock = new Vector2Int(5, 5); var start = new Vector2Int(8, 10); var route = new FarmRobotRoute();
             Check(route.TryAdd(start, grid.ContainsCell) && route.Count == 1, "first work tile can be anywhere, independently of dock");
             Check(!route.TryAdd(start + new Vector2Int(1, 1), grid.ContainsCell), "diagonal-only tile connection rejected");
