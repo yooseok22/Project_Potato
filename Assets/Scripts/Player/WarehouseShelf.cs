@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 [DisallowMultipleComponent]
 public sealed class WarehouseShelf : MonoBehaviour, IPlayerInteractable
@@ -12,8 +13,8 @@ public sealed class WarehouseShelf : MonoBehaviour, IPlayerInteractable
     public WarehouseStorageArea Warehouse => warehouse;
     public string ShelfId => shelfId;
     public string DisplayName => "선반 " + shelfId;
-    public string Prompt => $"{DisplayName} · 감자 {Inventory.Count}/{ShelfCapacity}" +
-        (Inventory.Free == 0 ? "\n선반이 가득 찼습니다" : "\n[E] 바구니 감자 보관");
+    public string Prompt => $"{DisplayName} · 감자 {Inventory.Count}/{ShelfCapacity}\n" +
+        (Inventory.Count > 0 ? "[E] 감자 꺼내기" + (Inventory.Free > 0 ? "   [Shift+E] 바구니 감자 보관" : "") : "[E] 바구니 감자 보관");
     public bool RequiresHold => false;
     public float HoldDuration => 0f;
 
@@ -29,13 +30,23 @@ public sealed class WarehouseShelf : MonoBehaviour, IPlayerInteractable
         if (!isActiveAndEnabled || !player || !warehouse || !warehouse.Contains(player.transform.position)) return false;
         var basket = player.GetComponent<PlayerBasketInventory>();
         if (!persistence) persistence = FindAnyObjectByType<PotatoStorageSaveAdapter>();
-        return basket && basket.IsLocalPlayer && basket.Inventory.Count > 0 && Inventory.Free > 0 &&
+        return basket && basket.IsLocalPlayer && player.GetComponent<FirstPersonPlayerController>().CanUseGameplayInput &&
+            ((Inventory.Count > 0 && basket.Inventory.Free > 0) || (basket.Inventory.Count > 0 && Inventory.Free > 0)) &&
             persistence && persistence.IsReady && persistence.IsOffline;
     }
 
     public void Interact(PlayerInteractionController player)
     {
         if (!CanInteract(player)) return;
+        var keyboard = Keyboard.current;
+        bool deposit = keyboard != null && (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed);
+        if (Inventory.Count > 0 && !deposit)
+        {
+            var withdrawal = player.GetComponent<WarehouseWithdrawalController>();
+            if (!withdrawal) withdrawal = player.gameObject.AddComponent<WarehouseWithdrawalController>();
+            withdrawal.TryOpen(this);
+            return;
+        }
         var basket = player.GetComponent<PlayerBasketInventory>();
         if (PotatoStorageService.TryDeposit(basket.Inventory, Inventory, persistence.SaveActive, out int moved))
             Debug.Log($"[창고] {DisplayName}에 {moved}개 보관. 선반={Inventory.Count}/{ShelfCapacity}, 바구니={basket.Inventory.Count}/{PlayerBasketInventory.BasketCapacity}", this);

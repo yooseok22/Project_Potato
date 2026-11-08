@@ -45,9 +45,14 @@ public sealed class ShelfHoverView : MonoBehaviour
                 {
                     HoveredShelf = shelf;
                     var interaction = player.GetComponent<PlayerInteractionController>();
-                    string action = !basket || basket.Inventory.Count == 0 ? "바구니가 비어 있습니다" :
-                        shelf.Inventory.Free == 0 ? "선반이 가득 찼습니다" :
-                        interaction && ReferenceEquals(interaction.CurrentTarget, shelf) ? "[E] 바구니 감자 보관" : "가까이 다가가 보관하세요";
+                    string action;
+                    if (!interaction || !ReferenceEquals(interaction.CurrentTarget, shelf)) action = "가까이 다가가 이용하세요";
+                    else if (shelf.Inventory.Count > 0)
+                    {
+                        action = basket && basket.Inventory.Free > 0 ? "[E] 감자 꺼내기" : "바구니가 가득 찼습니다";
+                        if (basket && basket.Inventory.Count > 0 && shelf.Inventory.Free > 0) action += "   [Shift+E] 감자 보관";
+                    }
+                    else action = basket && basket.Inventory.Count > 0 ? "[E] 바구니 감자 보관" : "선반과 바구니가 비어 있습니다";
                     if (label) label.text = $"{shelf.DisplayName} · 감자 {shelf.Inventory.Count}/{WarehouseShelf.ShelfCapacity}\n{action}";
                 }
             }

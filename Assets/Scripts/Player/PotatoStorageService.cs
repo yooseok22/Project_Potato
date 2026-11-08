@@ -56,6 +56,18 @@ public static class PotatoStorageService
         return false;
     }
 
+    public static bool TryWithdraw(PotatoInventory shelf, PotatoInventory basket, long potatoId, Func<bool> save, out string error)
+    {
+        error = null;
+        if (shelf == null || basket == null || ReferenceEquals(shelf, basket) || save == null)
+        { error = "감자 저장 연결이 없습니다."; return false; }
+        if (basket.Free == 0) { error = "바구니가 가득 찼습니다."; return false; }
+        if (shelf.FindPotato(potatoId) == null) { error = "선택한 감자가 더 이상 선반에 없습니다."; return false; }
+        if (shelf.TryTransferPotatoTo(potatoId, basket, save)) return true;
+        error = "저장에 실패하여 감자를 원래 위치로 복구했습니다.";
+        return false;
+    }
+
     public static bool TryHarvest(PotatoInventory basket, PotatoHarvestCoordinator harvest, GroundGrid ground,
         Vector2Int cell, Func<bool> save, out string error, ISaveSection farmingSection = null)
     {
