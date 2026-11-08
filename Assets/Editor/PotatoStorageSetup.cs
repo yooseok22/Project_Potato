@@ -66,16 +66,22 @@ public static class PotatoStorageSetup
         var prefab = PrefabUtility.LoadPrefabContents(playerPath);
         try
         {
+            bool changed = false;
             if (!prefab.GetComponent<PlayerBasketInventory>())
             {
                 prefab.AddComponent<PlayerBasketInventory>();
-                PrefabUtility.SaveAsPrefabAsset(prefab, playerPath);
+                changed = true;
             }
+            if (!prefab.GetComponent<WarehouseWithdrawalController>()) { prefab.AddComponent<WarehouseWithdrawalController>(); changed = true; }
+            if (changed) PrefabUtility.SaveAsPrefabAsset(prefab, playerPath);
         }
         finally { PrefabUtility.UnloadPrefabContents(prefab); }
         foreach (var player in roots.SelectMany(r => r.GetComponentsInChildren<FirstPersonPlayerController>(true)))
-            if (PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(player) != playerPath && !player.GetComponent<PlayerBasketInventory>())
-                Undo.AddComponent<PlayerBasketInventory>(player.gameObject);
+            if (PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(player) != playerPath)
+            {
+                if (!player.GetComponent<PlayerBasketInventory>()) Undo.AddComponent<PlayerBasketInventory>(player.gameObject);
+                if (!player.GetComponent<WarehouseWithdrawalController>()) Undo.AddComponent<WarehouseWithdrawalController>(player.gameObject);
+            }
         if (!roots.SelectMany(r => r.GetComponentsInChildren<PotatoStorageSaveAdapter>(true)).Any())
         {
             var service = new GameObject("PotatoStorage");

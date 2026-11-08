@@ -22,6 +22,7 @@ public sealed class BasketProcessingController : MonoBehaviour
     public bool IsOpen { get; private set; }
     public bool IsShaking => shakeRemaining > 0f;
     public BasketPotatoSelection Selection => selection;
+    public Vector3 CarriedBasketPosition => view ? view.BasketPosition : transform.position + Vector3.up;
 
     private void Awake()
     {
@@ -34,7 +35,7 @@ public sealed class BasketProcessingController : MonoBehaviour
 
     private void Start()
     {
-        if (player.IsLocallyControlled) EnsureView();
+        if (player.IsLocallyControlled) RefreshCarriedBasket();
     }
 
     private void EnsureView()
@@ -79,7 +80,11 @@ public sealed class BasketProcessingController : MonoBehaviour
 
     private void Update()
     {
-        if (!IsOpen) return;
+        if (!IsOpen)
+        {
+            if (player.IsLocallyControlled && (!view || inventoryRevision != basket.Inventory.Revision)) RefreshCarriedBasket();
+            return;
+        }
         var otherBlocks = blocker.ActiveReasons & ~PlayerActionBlockReason.BasketSelection;
         if (!processor || !processor.isActiveAndEnabled || !player.IsLocallyControlled || !Application.isFocused ||
             otherBlocks != PlayerActionBlockReason.None || basket.Inventory.Revision != inventoryRevision)
@@ -138,12 +143,22 @@ public sealed class BasketProcessingController : MonoBehaviour
     private void RefreshHeader() => view.SetHeader(processor.LoadedPotatoCount, processor.PotatoesPerBatch, basket.Inventory.Count,
         processor.BlenderState == StarchBlenderState.LidOpening);
 
+    public void RefreshCarriedBasket()
+    {
+        if (IsOpen || !player.IsLocallyControlled) return;
+        EnsureView();
+        if (!view) return;
+        view.SetPotatoes(basket.Inventory.Potatoes);
+        inventoryRevision = basket.Inventory.Revision;
+    }
+
     public void Close()
     {
         if (!IsOpen) return;
         IsOpen = false;
         shakeRemaining = 0f;
         if (view) { view.SetShake(0f, false); view.SetOpen(false); }
+        RefreshCarriedBasket();
         visuals?.SetHandsVisible(true);
         if (items) items.SelectSlot(previousSlot);
         player.SetBasketSelectionOpen(false);

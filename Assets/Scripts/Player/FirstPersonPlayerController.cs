@@ -168,7 +168,7 @@ public sealed class FirstPersonPlayerController : MonoBehaviour
         if (!IsLocallyControlled) return;
         blocker.SetBlocked(PlayerActionBlockReason.BasketSelection, open);
         StopMotion();
-        SetCapture(!open && Application.isFocused && !blocker.GameplayBlocked);
+        SetCapture(!open && isActiveAndEnabled && Application.isFocused && !blocker.GameplayBlocked);
         if (!open) CursorCapturedThisFrame = true; // Consume the closing potato click before tools update.
     }
 

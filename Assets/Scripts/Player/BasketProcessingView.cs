@@ -8,8 +8,8 @@ public sealed class BasketProcessingView : MonoBehaviour
 {
     private Camera viewCamera;
     private Transform prop;
-    private readonly Transform[] potatoRoots = new Transform[3];
-    private readonly Collider[] hitboxes = new Collider[3];
+    private readonly Transform[] potatoRoots = new Transform[PlayerBasketInventory.BasketCapacity];
+    private readonly Collider[] hitboxes = new Collider[PlayerBasketInventory.BasketCapacity];
     private readonly List<Material> materials = new();
     private IReadOnlyList<BasketPotato> shown;
     private Canvas canvas;
@@ -22,6 +22,7 @@ public sealed class BasketProcessingView : MonoBehaviour
     private float messageUntil;
     private int hovered = -1;
     private readonly Vector3 frontPosition = new Vector3(0f, -0.30f, 0.78f);
+    public Vector3 BasketPosition => prop ? prop.position + Vector3.up * 0.15f : transform.position;
 
     public void Configure(Camera camera)
     {
@@ -102,7 +103,7 @@ public sealed class BasketProcessingView : MonoBehaviour
         shown = potatoes;
         hovered = -1;
         tooltip.gameObject.SetActive(false);
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < potatoRoots.Length; i++)
         {
             if (potatoRoots[i])
             {
@@ -114,7 +115,8 @@ public sealed class BasketProcessingView : MonoBehaviour
             var potato = potatoes[i];
             var root = new GameObject("SelectablePotato_" + potato.Id).transform;
             root.SetParent(prop, false);
-            root.localPosition = new Vector3((i - 1) * 0.19f, 0.15f, -0.015f);
+            root.localPosition = open ? new Vector3((i - 1) * 0.19f, 0.15f, -0.015f) :
+                new Vector3((i % 5 - 2) * 0.11f, 0.08f + (i / 5) * 0.04f, (i / 5 - 0.5f) * 0.14f);
             root.localRotation = Quaternion.Euler(0f, i * 47f, (i - 1) * 12f);
             potatoRoots[i] = root;
             // MaterialPropertyBlock shares one potato material without accumulating one per reroll.
@@ -148,7 +150,7 @@ public sealed class BasketProcessingView : MonoBehaviour
     {
         if (!open || shaking || presentation < 0.99f) return -1;
         Ray ray = viewCamera.ScreenPointToRay(screenPosition);
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < hitboxes.Length; i++)
             if (hitboxes[i] && hitboxes[i].Raycast(ray, out _, 3f)) return i;
         return -1;
     }
@@ -157,7 +159,7 @@ public sealed class BasketProcessingView : MonoBehaviour
     {
         hovered = index;
         tooltip.gameObject.SetActive(index >= 0);
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < potatoRoots.Length; i++)
             if (potatoRoots[i]) potatoRoots[i].localScale = Vector3.one * (i == index ? 1.09f : 1f);
         if (index < 0 || shown == null || index >= shown.Count) return;
         var potato = shown[index];

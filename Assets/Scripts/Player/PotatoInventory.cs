@@ -99,6 +99,25 @@ public sealed class PotatoInventory : IInventorySaveTarget
 
     public BasketPotato FindPotato(long id) => potatoes.Find(p => p.Id == id);
 
+    /// <summary>Move the selected individual atomically, including its identity, or restore both sides.</summary>
+    public bool TryTransferPotatoTo(long id, PotatoInventory destination, Func<bool> commit)
+    {
+        var potato = FindPotato(id);
+        if (potato == null || destination == null || ReferenceEquals(this, destination) ||
+            destination.Free == 0 || commit == null) return false;
+        return TryConsume(id, () =>
+        {
+            destination.AddUnchecked(potato.Grade, potato.Conditions, 1);
+            destination.potatoes[destination.potatoes.Count - 1] = potato;
+            bool saved = false;
+            try { saved = commit(); return saved; }
+            finally
+            {
+                if (!saved) destination.TryConsume(id, () => true);
+            }
+        });
+    }
+
     /// <summary>Commit one removal, preserving the exact identities and ordering if persistence fails.</summary>
     public bool TryConsume(long id, Func<bool> commit)
     {
