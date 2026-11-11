@@ -170,7 +170,7 @@ public sealed class BoarController : MonoBehaviour, IDamageable
         nextCropAttackAt = Time.time + cropAttackInterval;
         GroundGrid targetGround = cropTarget.Ground;
         Vector2Int targetCell = cropTarget.Cell;
-        farmingSystem.TryDamage(targetGround, targetCell, cropDamage);
+        farmingSystem.TryDamageFromBoar(targetGround, targetCell, cropDamage);
         if (!cropTarget.IsDead) return;
         farmingSystem.StopFarming(targetGround, targetCell);
         targetGround.TrySetCellState(targetCell, GroundCellState.BoarDugField);

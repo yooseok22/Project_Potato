@@ -139,6 +139,9 @@ public sealed partial class PotatoFarmingSystem : MonoBehaviour
     public event Action<GroundGrid, Vector2Int> FarmingTileDied;
     /// <summary>True when bugs appear; false when chased away or their deadline expires.</summary>
     public event Action<GroundGrid, Vector2Int, bool> FarmingBugsChanged;
+    public event Action<GroundGrid, Vector2Int> FarmingTileRemoved;
+    public event Action FarmingStateRestored;
+    public event Action<GroundGrid, Vector2Int> FarmingCropDestroyedByBoar;
 
     /// <summary>Convenience entry point for interactions using the Inspector-assigned grid and clock.</summary>
     public bool TryStartFarming(Vector2Int cell) => TryStartFarming(ground, cell, clock);
@@ -300,6 +303,15 @@ public sealed partial class PotatoFarmingSystem : MonoBehaviour
         return damageable.TryTakeDamage(amount);
     }
 
+    /// <summary>Retains the crop reference across synchronous death/removal callbacks.</summary>
+    public bool TryDamageFromBoar(GroundGrid targetGround, Vector2Int cell, float amount)
+    {
+        if (!TryGetFarmingTile(targetGround, cell, out var tile) || tile.IsDead) return false;
+        bool applied = TryDamage(targetGround, cell, amount);
+        if (applied && tile.IsDead) FarmingCropDestroyedByBoar?.Invoke(targetGround, cell);
+        return applied;
+    }
+
     /// <summary>
     /// Returns the crop's current HP and removes its farming data in one operation.
     /// Harvest requirements and tile visuals remain the caller's responsibility.
@@ -314,13 +326,16 @@ public sealed partial class PotatoFarmingSystem : MonoBehaviour
         if (!targetGround || !targetGround.ContainsCell(cell) ||
             !farmingTiles.TryGetValue(key, out var tile) || !farmingTiles.Remove(key)) return false;
         potatoHp = tile.returnPotatoHp();
+        FarmingTileRemoved?.Invoke(targetGround, cell);
         return true;
     }
 
     /// <summary>Unregister after harvest/removal. The caller owns the resulting tile state.</summary>
     public bool StopFarming(GroundGrid targetGround, Vector2Int cell)
     {
-        return farmingTiles.Remove((targetGround, cell));
+        if (!farmingTiles.Remove((targetGround, cell))) return false;
+        FarmingTileRemoved?.Invoke(targetGround, cell);
+        return true;
     }
 
     public bool StopFarming(Vector2Int cell) => StopFarming(ground, cell);
@@ -410,7 +425,7 @@ public sealed partial class PotatoFarmingSystem : MonoBehaviour
             foreach (var tile in pendingGrowth)
             {
                 var key = (tile.Ground, tile.Cell);
-                if (!tile.Ground) { farmingTiles.Remove(key); continue; }
+                if (!tile.Ground) { StopFarming(tile.Ground, tile.Cell); continue; }
                 RefreshBugDeadline(tile);
                 if (tile.IsDead || tile.IsGrowthPaused || !tile.IsWatered ||
                     !farmingTiles.TryGetValue(key, out var registered) || !ReferenceEquals(registered, tile)) continue;

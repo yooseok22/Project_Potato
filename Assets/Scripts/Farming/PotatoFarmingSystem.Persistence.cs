@@ -62,5 +62,6 @@ public sealed partial class PotatoFarmingSystem
         }
         Subscribe();
         // Do not replay planting/stage transitions: those would overwrite soil-cover and cut visuals.
+        FarmingStateRestored?.Invoke();
     }
 }

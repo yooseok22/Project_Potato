@@ -57,10 +57,14 @@ public sealed class PlayerToolController : MonoBehaviour
         UpdateFarmingPrompt();
         if (!player.CanUseGameplayInput || items.IsAimingThrow || player.CursorCapturedThisFrame) return;
         var keyboard = Keyboard.current;
-        if (items.SelectedSlot == PlayerItemSlot.Hands && !(interaction && interaction.HasInteractionTarget) &&
+        if (!(interaction && interaction.HasInteractionTarget) &&
             keyboard != null && keyboard.eKey.wasPressedThisFrame)
         {
-            farmingTarget?.TryUseHandsSelected(farmingSystem);
+            farmingTarget?.RefreshTarget();
+            if (farmingTarget && farmingTarget.CanChaseBugs)
+                farmingTarget.TryChaseBugsSelected();
+            else if (items.SelectedSlot == PlayerItemSlot.Hands)
+                farmingTarget?.TryUseHandsSelected(farmingSystem);
             UpdateFarmingPrompt();
         }
         var mouse = Mouse.current;
@@ -120,7 +124,9 @@ public sealed class PlayerToolController : MonoBehaviour
         if (player.CanUseGameplayInput && farmingTarget && !(interaction && interaction.HasInteractionTarget))
         {
             farmingTarget.RefreshTarget();
-            if (items.SelectedSlot == PlayerItemSlot.Hands && farmingTarget.CanCover)
+            if (farmingTarget.CanChaseBugs)
+                prompt = "[E]  벌레 쫓기";
+            else if (items.SelectedSlot == PlayerItemSlot.Hands && farmingTarget.CanCover)
                 prompt = "[E]  흙덮기";
             else if (items.SelectedSlot == PlayerItemSlot.Hands && farmingTarget.CanHarvest)
                 prompt = "[E]  감자 수확";

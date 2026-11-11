@@ -21,6 +21,7 @@ public sealed class FarmingTargetSelector : MonoBehaviour
     public bool CanPlant { get; private set; }
     public bool CanCover { get; private set; }
     public bool CanHarvest { get; private set; }
+    public bool CanChaseBugs { get; private set; }
     public Vector2Int SelectedCell { get; private set; }
     public GroundGrid Ground => ground;
 
@@ -45,17 +46,15 @@ public sealed class FarmingTargetSelector : MonoBehaviour
     {
         aimCamera = camera; player = target; ground = grid; preview = view; obstacleMask = mask;
     }
-    private void LateUpdate()
+    private void LateUpdate() => RefreshTarget();
+
+    public bool TryChaseBugsSelected()
     {
-        var items = player ? player.GetComponent<PlayerItemController>() : null;
-        if (items && items.SelectedSlot != PlayerItemSlot.Hands &&
-            items.SelectedSlot != PlayerItemSlot.Hoe && items.SelectedSlot != PlayerItemSlot.WateringCan)
-        {
-            HasTarget = CanFarm = CanFill = CanWater = CanPlant = CanCover = CanHarvest = false;
-            if (preview) preview.Hide();
-            return;
-        }
         RefreshTarget();
+        if (!CanChaseBugs) return false;
+        bool changed = farmingSystem.TryRemoveBugs(ground, SelectedCell);
+        RefreshTarget();
+        return changed;
     }
     public bool TryDigSelected()
     {
@@ -130,7 +129,11 @@ public sealed class FarmingTargetSelector : MonoBehaviour
         if (!HasTarget || !CanReachSelected()) return false;
         Vector2Int cell = SelectedCell;
         bool changed;
-        if (CanCover)
+        if (CanChaseBugs)
+        {
+            changed = farmingSystem.TryRemoveBugs(ground, cell);
+        }
+        else if (CanCover)
         {
             changed = ground.TryCoverPotato(cell);
             if (changed) harvestCoordinator?.MarkCovered(ground, cell);
@@ -168,7 +171,7 @@ public sealed class FarmingTargetSelector : MonoBehaviour
     }
     public void RefreshTarget()
     {
-        HasTarget = CanFarm = CanFill = CanWater = CanPlant = CanCover = CanHarvest = false;
+        HasTarget = CanFarm = CanFill = CanWater = CanPlant = CanCover = CanHarvest = CanChaseBugs = false;
         if (!aimCamera || !player || !ground || !preview) { if (preview) preview.Hide(); return; }
         Ray ray = aimCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
         if (!ground.TryGetCell(ray, rayDistance, out Vector2Int cell, out float distance)
@@ -196,7 +199,15 @@ public sealed class FarmingTargetSelector : MonoBehaviour
         CanCover = harvestCoordinator && ground.CanCoverPotato(cell) && inRange && emptyHands;
         CanHarvest = harvestCoordinator && harvestCoordinator.CanHarvest(ground, cell)
             && inRange && emptyHands;
+        CanChaseBugs = inRange && farmingSystem &&
+            farmingSystem.TryGetFarmingTile(ground, cell, out var bugCrop) &&
+            !bugCrop.IsDead && bugCrop.HasBugs && bugCrop.BugSecondsRemaining > 0d;
         if (!items) { preview.Hide(); return; }
+        if (CanChaseBugs)
+        {
+            preview.Show(center, ground.CellSize, true);
+            return;
+        }
         switch (items.SelectedSlot)
         {
             case PlayerItemSlot.Hands:
@@ -232,7 +243,7 @@ public sealed class FarmingTargetSelector : MonoBehaviour
     }
     private void OnDisable()
     {
-        HasTarget = CanFarm = CanFill = CanWater = CanPlant = CanCover = CanHarvest = false;
+        HasTarget = CanFarm = CanFill = CanWater = CanPlant = CanCover = CanHarvest = CanChaseBugs = false;
         if (preview) preview.Hide();
     }
 

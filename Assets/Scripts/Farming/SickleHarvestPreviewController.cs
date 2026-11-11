@@ -59,6 +59,8 @@ public sealed class SickleHarvestPreviewController : MonoBehaviour
         bool canInteract = inRange && (holdingSickle
             ? harvestCoordinator && harvestCoordinator.CanCutForHarvest(ground, cell)
             : ground.CanUsePotatoFork(cell));
+        var farmingTarget = GetComponent<FarmingTargetSelector>();
+        canInteract |= farmingTarget && farmingTarget.CanChaseBugs && farmingTarget.SelectedCell == cell;
 
         preview.Show(center, ground.CellSize, canInteract);
     }
