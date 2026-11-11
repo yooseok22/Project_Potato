@@ -142,6 +142,9 @@ public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
     private readonly Dictionary<(GroundGrid, Vector2Int), HarvestedPotatoCondition> harvestConditions = new();
     private PotatoFarmingSystem farmingSystem;
 
+    public event Action<GroundGrid, Vector2Int> LeavesCut;
+    public event Action<GroundGrid, Vector2Int> CropDiscarded;
+
     private void Awake() => Configure(GetComponent<PotatoFarmingSystem>());
 
     public void Configure(PotatoFarmingSystem system)
@@ -218,6 +221,7 @@ public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
         Debug.Log($"[Potato Harvest] 잎 베기 완료. Cell={cell}, " +
             $"수확시기={SickleHarvestPreviewController.HarvestStateName(tile.Stage)}, 시기 피해={damage:0.#}, " +
             $"HP={healthBeforeCut:0.#} → {tile.CurrentHealth:0.#}, 재배 상태={PotatoHarvestConditionRules.Describe(PotatoHarvestConditionRules.FromCrop(tile.Status))}", this);
+        LeavesCut?.Invoke(ground, cell);
         return true;
     }
 
@@ -230,7 +234,11 @@ public sealed partial class PotatoHarvestCoordinator : MonoBehaviour
         bool discardsCrop = IsForkDiscardState(state);
         if (discardsCrop && (!farmingSystem || !farmingSystem.StopFarming(ground, cell))) return false;
         if (!ground.TryUsePotatoFork(cell)) return false;
-        if (discardsCrop) ResetCell(ground, cell);
+        if (discardsCrop)
+        {
+            ResetCell(ground, cell);
+            CropDiscarded?.Invoke(ground, cell);
+        }
         else if (ground.TryGetHarvestInfo(cell, out var quality, out _) && quality == PotatoHarvestQuality.Damaged)
             farmingSystem.TryAddStatus(ground, cell, PotatoStatus.Injured);
         return true;

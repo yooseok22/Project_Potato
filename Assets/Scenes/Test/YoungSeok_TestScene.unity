@@ -13878,6 +13878,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 5150632319294187116, guid: cff37efee993e9c4ebda089a163cf38b, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1695582411}
+    - targetCorrespondingSourceObject: {fileID: 5150632319294187116, guid: cff37efee993e9c4ebda089a163cf38b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1695582412}
   m_SourcePrefab: {fileID: 100100000, guid: cff37efee993e9c4ebda089a163cf38b, type: 3}
 --- !u!1 &952396486
 GameObject:
@@ -20509,6 +20512,7 @@ GameObject:
   - component: {fileID: 1419936541}
   - component: {fileID: 1419936540}
   - component: {fileID: 1419936542}
+  - component: {fileID: 1419936543}
   m_Layer: 0
   m_Name: PotatoStarchTestSetup
   m_TagString: Untagged
@@ -20571,6 +20575,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SaveIdentity
   id: a00cd62ffdff48648fe266f6c1fb9745
+--- !u!114 &1419936543
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1419936539}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3360a6ff347ed442a7a59389bf0e13a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StarchWaterVfxController
+  processor: {fileID: 1419936540}
+  dropPrefab: {fileID: 206843436344405565, guid: 9b0af2049fcee6a4780d39da1d17b6b9, type: 3}
+  emissionAnchor: {fileID: 1753198179}
+  effectOffset: {x: 0, y: -1.09, z: 0}
 --- !u!1 &1422341918
 GameObject:
   m_ObjectHideFlags: 0
@@ -27942,6 +27962,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b97ec812181c4753a344300426c9057e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PotatoHarvestCoordinator
+--- !u!114 &1695582412
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1406765321}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca1acc818063df1498503f2ac62dbda4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingVfxController
+  boarCrashPrefab: {fileID: 1797823827842790031, guid: df895f0531a46104c9ee146cec100efe, type: 3}
+  bugPrefab: {fileID: 1342224798962183331, guid: 1ef1685a073470f42a4e9d2648a7456b, type: 3}
+  leafCrashPrefab: {fileID: 7166010045989725157, guid: 8c794b484bbc0d54cba48d6bc45d97c8, type: 3}
+  potatoCrashPrefab: {fileID: 7445865614720015989, guid: 1156425f5e8f2574c8a2521acf8fdbf4, type: 3}
+  boarOffset: {x: 0, y: 0.05, z: 0}
+  bugOffset: {x: 0, y: -0.29, z: 0}
+  leafOffset: {x: 0, y: 0.35, z: 0}
+  potatoOffset: {x: 0, y: 0.05, z: 0}
 --- !u!1 &1707908315
 GameObject:
   m_ObjectHideFlags: 0
@@ -28248,6 +28288,37 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 8420624748072324814, guid: 070d075688f73ab46a5a08a10a5832eb, type: 3}
   m_PrefabInstance: {fileID: 905069666}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1753198178
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1753198179}
+  m_Layer: 0
+  m_Name: StarchDripAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1753198179
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1753198178}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.12, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2451632502028513934}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1754815306
 GameObject:
   m_ObjectHideFlags: 0
@@ -28936,6 +29007,7 @@ MonoBehaviour:
   dogPrefab: {fileID: 7540256938717294183, guid: ab46fe3b40edaa54ca1b5c94204b26ab, type: 3}
   farmingSystem: {fileID: 1695582409}
   spawnPoint: {fileID: 0}
+  recoveryPoint: {fileID: 0}
   spawnOnStart: 0
 --- !u!4 &1892323214
 Transform:
@@ -35114,6 +35186,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 70c79e0d0d019894c88612ef954e977b, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1559077524}
+    - targetCorrespondingSourceObject: {fileID: -5023955269289977438, guid: 70c79e0d0d019894c88612ef954e977b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1753198179}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 70c79e0d0d019894c88612ef954e977b, type: 3}
       insertIndex: -1

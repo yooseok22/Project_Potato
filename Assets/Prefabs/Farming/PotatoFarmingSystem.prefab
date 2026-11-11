@@ -10,6 +10,8 @@ GameObject:
   m_Component:
   - component: {fileID: 3664057059244309479}
   - component: {fileID: 8046384701566211486}
+  - component: {fileID: 8493813507955601377}
+  - component: {fileID: 6398121548797089227}
   m_Layer: 0
   m_Name: PotatoFarmingSystem
   m_TagString: Untagged
@@ -46,6 +48,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PotatoFarmingSystem
   ground: {fileID: 0}
   clock: {fileID: 0}
+  defaultMaxHealth: 100
+  bugSpawnChance: 0.3
   stageMappings:
   - stage: 0
     cellState: 16
@@ -61,3 +65,35 @@ MonoBehaviour:
     cellState: 21
   - stage: 6
     cellState: 22
+--- !u!114 &8493813507955601377
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5150632319294187116}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b97ec812181c4753a344300426c9057e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PotatoHarvestCoordinator
+--- !u!114 &6398121548797089227
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5150632319294187116}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca1acc818063df1498503f2ac62dbda4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingVfxController
+  boarCrashPrefab: {fileID: 1797823827842790031, guid: df895f0531a46104c9ee146cec100efe, type: 3}
+  bugPrefab: {fileID: 1342224798962183331, guid: 1ef1685a073470f42a4e9d2648a7456b, type: 3}
+  leafCrashPrefab: {fileID: 7166010045989725157, guid: 8c794b484bbc0d54cba48d6bc45d97c8, type: 3}
+  potatoCrashPrefab: {fileID: 7445865614720015989, guid: 1156425f5e8f2574c8a2521acf8fdbf4, type: 3}
+  boarOffset: {x: 0, y: 0.05, z: 0}
+  bugOffset: {x: 0, y: -0.29, z: 0}
+  leafOffset: {x: 0, y: 0.35, z: 0}
+  potatoOffset: {x: 0, y: 0.05, z: 0}
