@@ -80,6 +80,7 @@ public sealed class FarmingSaveSection : ISaveSection
                     && (!crop.watered || crop.totalPausedSeconds <= (crop.paused ? crop.growthPausedAt : now) - crop.growthStartedAt)
                     && Enum.IsDefined(typeof(PotatoGrowthStage), crop.stage)
                     && SaveValidation.Finite(crop.maxHealth) && crop.maxHealth >= 1
+                    && SaveValidation.Finite(crop.growthSpeed) && (crop.growthSpeed == 0 || crop.growthSpeed >= 1 && crop.growthSpeed <= 4)
                     && SaveValidation.NonNegative(crop.health) && crop.health <= crop.maxHealth
                     && SaveValidation.NonNegative(crop.bugExpiresAt) && SaveValidation.NonNegative(crop.bugPreventionUntil)
                     && (!crop.hasBugs || crop.bugSpawnChecked && crop.watered), "Invalid crop state.");

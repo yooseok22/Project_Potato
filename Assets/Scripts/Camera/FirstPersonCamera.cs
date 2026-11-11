@@ -17,6 +17,8 @@ public sealed class FirstPersonCamera : MonoBehaviour
     private float yaw;
     private float currentEyeHeight;
     private bool crouching;
+    private float tabletSensitivity = 1f;
+    public void SetTabletSensitivity(float value) => tabletSensitivity = Mathf.Clamp(value, 0.01f, 16f);
 
     public Quaternion PlanarRotation => Quaternion.Euler(0f, yaw, 0f);
     public Quaternion ViewRotation => Quaternion.Euler(pitch, yaw, 0f);
@@ -34,8 +36,8 @@ public sealed class FirstPersonCamera : MonoBehaviour
 
     public void ApplyLook(Vector2 mouseDelta)
     {
-        yaw = Mathf.Repeat(yaw + mouseDelta.x * mouseSensitivity, 360f);
-        pitch = Mathf.Clamp(pitch - mouseDelta.y * mouseSensitivity, minimumPitch, maximumPitch);
+        yaw = Mathf.Repeat(yaw + mouseDelta.x * mouseSensitivity * tabletSensitivity, 360f);
+        pitch = Mathf.Clamp(pitch - mouseDelta.y * mouseSensitivity * tabletSensitivity, minimumPitch, maximumPitch);
     }
 
     public void SetCrouching(bool value) => crouching = value;

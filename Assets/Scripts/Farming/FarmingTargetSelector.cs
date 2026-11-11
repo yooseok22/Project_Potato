@@ -112,7 +112,13 @@ public sealed class FarmingTargetSelector : MonoBehaviour
         RefreshTarget();
         if (!farmingSystem || !HasTarget || !CanPlant || !CanReachSelected()) return false;
         Vector2Int cell = SelectedCell;
-        bool changed = farmingSystem.TryStartFarming(ground, cell);
+        bool changed;
+        if (TabletGameState.Local)
+        {
+            changed = TabletGameState.Local.TryPlant(farmingSystem, ground, cell, out string error);
+            if (!changed && !string.IsNullOrEmpty(error)) Debug.LogWarning("[씨감자] " + error, this);
+        }
+        else changed = farmingSystem.TryStartFarming(ground, cell);
         if (changed)
         {
             EnsureHarvestCoordinator(farmingSystem)?.ResetCell(ground, cell);

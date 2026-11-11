@@ -42,6 +42,12 @@ public sealed class StarchPackagingInventory : MonoBehaviour
             ClearHeldWrapper();
             return false;
         }
+        if (TabletGameState.Local && !TabletGameState.Local.TryConsume("wrapper", 1, out string error))
+        {
+            Debug.LogWarning("[포장지] " + error, this);
+            ClearHeldWrapper();
+            return false;
+        }
         WrapperCount = 1;
         Debug.Log("[PotatoStarch] 포장지 1개를 손에 들었습니다. 위 전분 틀에 [E]로 포장하세요.", this);
         return true;

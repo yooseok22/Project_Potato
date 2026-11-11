@@ -97,6 +97,11 @@ public static class PotatoHarvestRewardRules
         {
             minimum = maximum = 0;
         }
+        if (health > 0f && Application.isPlaying && TabletGameState.Local)
+        {
+            int bonus = TabletGameState.Local.Tier(4);
+            minimum += bonus; maximum += bonus;
+        }
     }
 
     public static PotatoHarvestGrade GradeAt(float health, float roll01)

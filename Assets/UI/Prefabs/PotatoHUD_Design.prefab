@@ -2035,6 +2035,7 @@ GameObject:
   - component: {fileID: 6826640377064636383}
   - component: {fileID: 6344346090596498327}
   - component: {fileID: 1866655336208231665}
+  - component: {fileID: 6058360038569621791}
   m_Layer: 5
   m_Name: PotatoHUD_Design
   m_TagString: Untagged
@@ -2193,6 +2194,24 @@ MonoBehaviour:
   - {fileID: 839549972, guid: b76e400e0707deb4cac603baf79e29b8, type: 3}
   - {fileID: 2033761727, guid: b76e400e0707deb4cac603baf79e29b8, type: 3}
   - {fileID: -1898002605, guid: 046b78d17c6d06546a05eb2fbaee704f, type: 3}
+--- !u!114 &6058360038569621791
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2028396231388783411}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 573d340465289514dba721cc2dd60d79, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BasketFillHud
+  basketIcon: {fileID: 4769431294784137176}
+  fillSprites:
+  - {fileID: 1604245990, guid: 5fe1cebce0b04fb47b374cf3a243e363, type: 3}
+  - {fileID: -859888654, guid: 5fe1cebce0b04fb47b374cf3a243e363, type: 3}
+  - {fileID: 1024231508, guid: 5fe1cebce0b04fb47b374cf3a243e363, type: 3}
+  - {fileID: -651605093, guid: 5fe1cebce0b04fb47b374cf3a243e363, type: 3}
 --- !u!1 &2142217752510188386
 GameObject:
   m_ObjectHideFlags: 0
@@ -5890,7 +5909,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 1914420762, guid: b76e400e0707deb4cac603baf79e29b8, type: 3}
+  m_Sprite: {fileID: 1604245990, guid: 5fe1cebce0b04fb47b374cf3a243e363, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1

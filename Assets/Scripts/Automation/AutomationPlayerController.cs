@@ -3,7 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// <summary>Free offline construction. B toggles, Z/X select, R rotates; E connects, RMB pins.</summary>
+/// <summary>Offline construction. Tablet-owned machine counts limit concurrent placements.</summary>
 [DefaultExecutionOrder(-50)]
 [RequireComponent(typeof(FirstPersonPlayerController))]
 public sealed partial class AutomationPlayerController : MonoBehaviour
@@ -98,7 +98,13 @@ public sealed partial class AutomationPlayerController : MonoBehaviour
         {
             if (mouse != null && mouse.leftButton.wasPressedThisFrame && !player.CursorCapturedThisFrame)
             {
-                if (valid) world.Place(selected, position, Quaternion.Euler(0, rotation * 90, 0), selectedRobotSize);
+                if (valid)
+                {
+                    var profile = TabletGameState.Local;
+                    int installed = world.Blocks.FindAll(b => b && b.Kind == selected).Count;
+                    if (profile && installed >= profile.Owned("machine-" + (int)selected)) Notify("보유 기계가 부족합니다. 태블릿 상점에서 구매하세요.");
+                    else world.Place(selected, position, Quaternion.Euler(0, rotation * 90, 0), selectedRobotSize);
+                }
                 else Notify(robotStation ? "충전소는 비어 있는 일반 땅에만 설치할 수 있습니다." : "평평하고 비어 있는 땅을 선택하세요.");
             }
             if (keyboard.eKey.wasPressedThisFrame && target && target.TryGetComponent<FarmRobotStation>(out var station))

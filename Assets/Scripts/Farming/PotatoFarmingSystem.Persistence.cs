@@ -8,6 +8,7 @@ public sealed partial class PotatoFarmingSystem
     {
         internal FarmCropData CaptureSaveData() => new()
         {
+            growthSpeed = GrowthSpeed,
             gridId = SaveIdentity.Key(Ground), x = Cell.x, y = Cell.y, plantedAt = PlantedAt,
             growthStartedAt = GrowthStartedAt ?? 0, watered = IsWatered,
             growthPausedAt = GrowthPausedAt ?? 0, paused = IsGrowthPaused, totalPausedSeconds = TotalPausedSeconds,
@@ -30,6 +31,7 @@ public sealed partial class PotatoFarmingSystem
             Stage = data.stage;
             CurrentHealth = data.health;
             MaxHealth = data.maxHealth;
+            GrowthSpeed = data.growthSpeed <= 0f ? 1f : Mathf.Clamp(data.growthSpeed, 1f, 4f);
             Status = data.status;
             IsMulchingFilmApplied = data.isMulchingFilmApplied;
             IsSoilCovered = data.isSoilCovered || grid.IsSoilCoveredPotato(Cell);
