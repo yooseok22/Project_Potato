@@ -19,6 +19,17 @@ public sealed partial class PotatoFarmingSystem : MonoBehaviour
     [SerializeField] private WorldClock clock;
     [SerializeField, Min(1f)] private float defaultMaxHealth = 100f;
     [SerializeField, Range(0f, 1f)] private float bugSpawnChance = 0.30f;
+    private float researchGrowthSpeed = 1f;
+    private float? baseMaxHealth, baseBugChance;
+    public void ApplyTabletResearch(float growthSpeed, float healthMultiplier, float bugMultiplier)
+    {
+        baseMaxHealth ??= defaultMaxHealth;
+        baseBugChance ??= bugSpawnChance;
+        defaultMaxHealth = baseMaxHealth.Value * healthMultiplier;
+        bugSpawnChance = Mathf.Clamp01(baseBugChance.Value * bugMultiplier);
+        researchGrowthSpeed = Mathf.Clamp(growthSpeed, 1f, 4f);
+        foreach (var tile in GetFarmingTiles()) tile.SetGrowthSpeed(researchGrowthSpeed);
+    }
     public const double BugLifetimeSeconds = 150d;
 
     [Serializable]
@@ -66,10 +77,19 @@ public sealed partial class PotatoFarmingSystem : MonoBehaviour
         private double TotalPausedSeconds { get; set; }
         private readonly WorldClock clock;
         private readonly Action<FarmingTile, float> healthChanged;
+        internal float GrowthSpeed { get; private set; } = 1f;
+        internal void SetGrowthSpeed(float value)
+        {
+            value = Mathf.Clamp(value, 1f, 4f);
+            if (Mathf.Approximately(value, GrowthSpeed)) return;
+            if (IsWatered && clock)
+                GrowthStartedAt = (GrowthPausedAt ?? clock.ElapsedSeconds) - TotalPausedSeconds - AgeSeconds / value;
+            GrowthSpeed = value;
+        }
         /// <summary>Growth age, excluding the wait between planting and first watering.</summary>
         public double AgeSeconds => clock && GrowthStartedAt.HasValue
             ? Math.Max(0d, (GrowthPausedAt ?? clock.ElapsedSeconds) -
-                GrowthStartedAt.Value - TotalPausedSeconds) : 0d;
+                GrowthStartedAt.Value - TotalPausedSeconds) * GrowthSpeed : 0d;
         public bool IsReadyToHarvest => AgeSeconds >= PotatoGrowthRules.ReadyToHarvestSeconds;
         public float Progress => (float)Math.Min(1d, AgeSeconds / PotatoGrowthRules.BaseGrowthSeconds);
 
@@ -162,6 +182,7 @@ public sealed partial class PotatoFarmingSystem : MonoBehaviour
         clock = worldClock;
         Subscribe();
         var tile = new FarmingTile(targetGround, cell, clock, defaultMaxHealth, OnHealthChanged);
+        tile.SetGrowthSpeed(researchGrowthSpeed);
         farmingTiles.Add(key, tile);
         ForwardStage(tile, tile.Stage);
         return true;
@@ -346,12 +367,12 @@ public sealed partial class PotatoFarmingSystem : MonoBehaviour
         if (stage == PotatoGrowthStage.TwoLargeLeaves && !tile.BugSpawnChecked)
         {
             tile.BugSpawnChecked = true;
-            double spawnTime = clock.ElapsedSeconds - Math.Max(0d, tile.AgeSeconds - 80d);
+            double spawnTime = clock.ElapsedSeconds - Math.Max(0d, tile.AgeSeconds - 80d) / tile.GrowthSpeed;
             if (tile.BugPreventionUntil <= spawnTime && UnityEngine.Random.value < bugSpawnChance)
             {
                 tile.HasBugs = true;
                 // A time skip must not grant another 150 seconds from the end of the skip.
-                tile.BugExpiresAt = clock.ElapsedSeconds - Math.Max(0d, tile.AgeSeconds - 80d) + BugLifetimeSeconds;
+                tile.BugExpiresAt = clock.ElapsedSeconds - Math.Max(0d, tile.AgeSeconds - 80d) / tile.GrowthSpeed + BugLifetimeSeconds;
                 RefreshBugDeadline(tile);
                 if (tile.HasBugs) FarmingBugsChanged?.Invoke(tile.Ground, tile.Cell, true);
             }

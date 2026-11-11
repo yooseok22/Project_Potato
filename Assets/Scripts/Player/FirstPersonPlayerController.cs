@@ -172,6 +172,14 @@ public sealed class FirstPersonPlayerController : MonoBehaviour
         if (!open) CursorCapturedThisFrame = true; // Consume the closing potato click before tools update.
     }
 
+    public void SetTabletInputOpen(bool open)
+    {
+        if (!IsLocallyControlled) return;
+        StopMotion();
+        SetCapture(!open && isActiveAndEnabled && Application.isFocused && !blocker.GameplayBlocked);
+        if (!open) CursorCapturedThisFrame = true;
+    }
+
     private void SetCrouching(bool value)
     {
         if (IsCrouching == value) return;

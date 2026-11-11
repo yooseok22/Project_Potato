@@ -31,6 +31,7 @@ using UnityEngine;
 
 [Serializable] public sealed class FarmCropData
 {
+    public float growthSpeed = 1f;
     public string gridId;
     public int x, y;
     public double plantedAt, growthStartedAt, growthPausedAt, totalPausedSeconds;

@@ -57,7 +57,9 @@ public sealed class PlayerBasketInventory : MonoBehaviour
             Debug.LogWarning("[바구니] 저장 연결이 준비되지 않아 수확하지 않았습니다.", this);
             return false;
         }
-        bool success = PotatoStorageService.TryHarvest(Inventory, harvest, ground, cell, persistence.SaveActive, out string error);
+        int previous = Inventory.Count;
+        bool SaveHarvest() => TabletGameState.Local ? TabletGameState.Local.RecordHarvestAndSave(Inventory.Count - previous) : persistence.SaveActive();
+        bool success = PotatoStorageService.TryHarvest(Inventory, harvest, ground, cell, SaveHarvest, out string error);
         if (!success && !string.IsNullOrEmpty(error)) Debug.LogWarning("[바구니] " + error, this);
         if (success) PrintInventory();
         return success;

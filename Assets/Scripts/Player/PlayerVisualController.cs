@@ -2,6 +2,7 @@ using UnityEngine;
 
 public sealed class PlayerVisualController : MonoBehaviour
 {
+    public bool MotionEffectsEnabled { get; set; } = true;
     [SerializeField] private Renderer worldRenderer;
     [SerializeField] private Color handColor = new Color(0.92f, 0.72f, 0.55f, 1f);
 
@@ -48,7 +49,7 @@ public sealed class PlayerVisualController : MonoBehaviour
     public void SetPose(bool jumping, bool crouching, float movement)
     {
         if (!viewRoot) return;
-        float bob = jumping ? 0f : Mathf.Sin(Time.time * Mathf.Lerp(0f, 10f, movement)) * 0.008f * movement;
+        float bob = jumping || !MotionEffectsEnabled ? 0f : Mathf.Sin(Time.time * Mathf.Lerp(0f, 10f, movement)) * 0.008f * movement;
         Vector3 spread = jumping ? new Vector3(0.09f, 0.03f, -0.04f) : Vector3.zero;
         leftHand.localPosition = leftRest + new Vector3(-spread.x, spread.y + bob, spread.z);
         rightHand.localPosition = rightRest + new Vector3(spread.x, spread.y + bob, spread.z);
